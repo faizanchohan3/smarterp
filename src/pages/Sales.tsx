@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
+import BarcodeScanner from "@/components/shared/BarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,11 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import { Plus, Trash2, Printer, ShoppingCart, Wallet, ArrowDownCircle } from "lucide-react";
+import { Plus, Trash2, Printer, ShoppingCart, Wallet, ArrowDownCircle, Scan } from "lucide-react";
 import StatCard from "@/components/shared/StatCard";
+import { TOLA_TO_GRAM, RATTI_PER_GRAM, fineWeight } from "@/lib/gold";
 
-const TOLA_IN_GRAMS = 11.664;
-const RATTI_PER_GRAM = 8;
+const TOLA_IN_GRAMS = TOLA_TO_GRAM;
+const RATTI_IN_GRAMS = RATTI_PER_GRAM;
 
 interface SaleItem {
   product_id: string;
@@ -29,12 +31,15 @@ interface SaleItem {
   making_unit: string; // "pkr" | "gram" | "ratti"
   unit_price: number;
   total: number;
+  purity_karat?: number | null;
+  gross_weight?: number;
+  net_weight?: number;
 }
 
 const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): number => {
   const rpg = tolaRate / TOLA_IN_GRAMS;
   if (unit === "gram") return value * rpg;
-  if (unit === "ratti") return (value / RATTI_PER_GRAM) * rpg;
+  if (unit === "ratti") return (value / RATTI_IN_GRAMS) * rpg;
   return value; // "pkr"
 };
 
@@ -65,6 +70,7 @@ const Sales = () => {
   const { businessId, shopName, ownerName, shopLogo, shopAddress, shopPhone } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [scannerOpenForRow, setScannerOpenForRow] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [discount, setDiscount] = useState("0");
   const [paidAmount, setPaidAmount] = useState("");
@@ -72,7 +78,7 @@ const Sales = () => {
   const [repaymentDate, setRepaymentDate] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0 }]);
 
   const goldPerUnitCalc = (weightStr: string | number, weightUnit: string, rate: number) => {
     const weight = parseFloat(String(weightStr)) || 0;
@@ -89,6 +95,9 @@ const Sales = () => {
         updated[index].product_name = prod.name;
         updated[index].weight = Number(prod.weight_value) || 0;
         updated[index].weight_unit = prod.weight_unit === "milligram" ? "ratti" : "gram";
+        updated[index].purity_karat = prod.purity_karat || null;
+        updated[index].gross_weight = Number(prod.gross_weight) || 0;
+        updated[index].net_weight = prod.gross_weight && prod.purity_karat ? fineWeight(Number(prod.gross_weight), prod.purity_karat) : 0;
       }
     }
     const rate = parseFloat(tolaRate) || 0;
@@ -119,9 +128,20 @@ const Sales = () => {
 
   const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
 
+  const handleBarcodeScan = (code: string) => {
+    if (scannerOpenForRow === null) return;
+    const matched = products.find((p: any) => p.serial_number === code);
+    if (!matched) {
+      toast({ title: "No product found", description: `Code: ${code}`, variant: "destructive" });
+      return;
+    }
+    updateItem(scannerOpenForRow, "product_id", matched.id);
+    setScannerOpenForRow(null);
+  };
+
   const totalWeightGrams = items.reduce((sum, item) => {
     const wg = item.weight_unit === "ratti"
-      ? (parseFloat(String(item.weight)) || 0) / RATTI_PER_GRAM
+      ? (parseFloat(String(item.weight)) || 0) / RATTI_IN_GRAMS
       : (parseFloat(String(item.weight)) || 0);
     return sum + wg * (parseFloat(String(item.quantity)) || 1);
   }, 0);
@@ -182,6 +202,9 @@ const Sales = () => {
         ),
         weight: parseFloat(String(item.weight)) || 0,
         weight_unit: item.weight_unit,
+        purity_karat: item.purity_karat || null,
+        gross_weight: item.gross_weight || 0,
+        net_weight: item.net_weight || 0,
       }))
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
@@ -341,6 +364,7 @@ const Sales = () => {
                     {items.map((item, i) => (
                       <div key={i} className="border rounded-lg p-3 space-y-2">
                         <div className="flex gap-2 items-end">
+                          <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpenForRow(i)} title="Scan barcode or QR code"><Scan className="w-4 h-4" /></Button>
                           <div className="flex-1">
                             <Select value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)}>
                               <SelectTrigger><SelectValue placeholder="Product" /></SelectTrigger>
@@ -437,6 +461,8 @@ const Sales = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <BarcodeScanner open={scannerOpenForRow !== null} onOpenChange={() => setScannerOpenForRow(null)} onScan={handleBarcodeScan} />
+
           </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

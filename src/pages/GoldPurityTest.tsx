@@ -8,28 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FlaskConical, Sparkles, AlertCircle, Printer, Download, CheckCircle2, Zap } from "lucide-react";
-
-const TOLA_TO_GRAM = 11.664;
-
-// ─── Calibrated density → karat lookup table ────────────────────────────────
-// Do NOT use linear formula — gold alloys vary; use nearest-match lookup only.
-const KARAT_TABLE = [
-  { density: 6.5,  karat: 6  },
-  { density: 7.0,  karat: 8  },
-  { density: 8.0,  karat: 10 },
-  { density: 9.0,  karat: 12 },
-  { density: 10.5, karat: 14 },
-  { density: 12.0, karat: 16 },
-  { density: 14.0, karat: 18 },
-  { density: 16.5, karat: 20 },
-  { density: 17.5, karat: 22 },
-  { density: 19.3, karat: 24 },
-];
-
-const nearestKarat = (density: number) =>
-  KARAT_TABLE.reduce((best, entry) =>
-    Math.abs(density - entry.density) < Math.abs(density - best.density) ? entry : best
-  );
+import { TOLA_TO_GRAM, KARAT_TABLE, nearestKarat, purityPercent } from "@/lib/gold";
 
 const purityColor = (k: number) => k >= 20 ? "text-green-600" : k >= 14 ? "text-yellow-600" : "text-red-600";
 const purityBorderBg = (k: number) =>
@@ -96,7 +75,7 @@ const GoldPurityTest = () => {
 
     const density = wa / (wa - ww);
     const { karat } = nearestKarat(density);
-    const purityPct = Number(((karat / 24) * 100).toFixed(2));
+    const purityPct = purityPercent(karat);
     const pureWeight = Number((wa * (purityPct / 100)).toFixed(4));
     const goldValue = Number((pureWeight * rate).toFixed(2));
 

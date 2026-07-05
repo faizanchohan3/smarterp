@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { Plus, Printer, Coins, TrendingUp, Calendar } from "lucide-react";
+import { tolaRateForKarat } from "@/lib/gold";
 
 const GoldRates = () => {
   const { businessId } = useAuth();
@@ -94,9 +95,9 @@ const GoldRates = () => {
                       setForm({
                         ...form,
                         tola_24k: v,
-                        tola_22k: n > 0 ? (n * 22 / 24).toFixed(0) : form.tola_22k,
-                        tola_21k: n > 0 ? (n * 21 / 24).toFixed(0) : form.tola_21k,
-                        tola_18k: n > 0 ? (n * 18 / 24).toFixed(0) : form.tola_18k,
+                        tola_22k: n > 0 ? String(tolaRateForKarat(n, 22)) : form.tola_22k,
+                        tola_21k: n > 0 ? String(tolaRateForKarat(n, 21)) : form.tola_21k,
+                        tola_18k: n > 0 ? String(tolaRateForKarat(n, 18)) : form.tola_18k,
                       });
                     }} /></div>
                     <div><label className="text-xs">22K / Tola</label><Input type="number" value={form.tola_22k} onChange={e => setForm({ ...form, tola_22k: e.target.value })} /></div>

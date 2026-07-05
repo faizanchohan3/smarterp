@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Users, Truck, Package, Tag, ShoppingCart, Receipt,
   Wallet, BookOpen, CreditCard, UserCog, LogOut, Building2,
   BarChart3, TrendingUp, ArrowDownCircle, ArrowUpCircle, ClipboardList,
-  ChevronDown, Sparkles, FlaskConical, Coins, Settings, FileSpreadsheet
+  ChevronDown, Sparkles, FlaskConical, Coins, Settings, FileSpreadsheet,
+  Hammer, Wrench, Gem
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -27,6 +28,12 @@ const shopMenuItems = [
   { label: "Ledger", icon: BookOpen, path: "/ledger", color: "from-indigo-400 to-violet-500" },
   { label: "Payments", icon: CreditCard, path: "/payments", color: "from-teal-400 to-cyan-500" },
   { label: "Chart of Accounts", icon: FileSpreadsheet, path: "/chart-of-accounts", color: "from-slate-400 to-gray-500" },
+];
+
+const serviceMenuItems = [
+  { label: "Karigars", icon: Hammer, path: "/karigars" },
+  { label: "Repairs", icon: Wrench, path: "/repairs" },
+  { label: "Custom Orders", icon: Gem, path: "/custom-orders" },
 ];
 
 const reportMenuItems = [
@@ -59,7 +66,9 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
   const isAdmin = role === "super_admin";
   const menuItems = isAdmin ? adminMenuItems : shopMenuItems;
   const isReportsOpen = location.pathname.startsWith("/reports");
+  const isServiceOpen = location.pathname.startsWith("/karigars") || location.pathname.startsWith("/repairs") || location.pathname.startsWith("/custom-orders");
   const [reportsOpen, setReportsOpen] = useState(isReportsOpen);
+  const [serviceOpen, setServiceOpen] = useState(isServiceOpen);
 
   const go = (path: string) => {
     navigate(path);
@@ -127,6 +136,46 @@ const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
         {menuItems.map((item) => (
           <NavButton key={item.path} item={item} />
         ))}
+
+        {!isAdmin && (
+          <Collapsible open={serviceOpen} onOpenChange={setServiceOpen}>
+            <CollapsibleTrigger className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all",
+              isServiceOpen
+                ? "bg-gradient-to-r from-amber-500/25 via-amber-500/15 to-transparent text-amber-100 font-semibold"
+                : "text-sidebar-muted hover:text-amber-100 hover:bg-white/5"
+            )}>
+              <span className={cn(
+                "flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-gradient-to-br",
+                isServiceOpen ? "from-purple-400 to-fuchsia-600 text-white shadow-lg" : "bg-white/5"
+              )}>
+                <Wrench className="w-4 h-4" />
+              </span>
+              Repairs & Orders
+              <ChevronDown className={cn("w-3.5 h-3.5 ml-auto transition-transform", serviceOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-4 space-y-0.5 mt-1">
+              {serviceMenuItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => go(item.path)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all",
+                      isActive
+                        ? "bg-amber-500/20 text-amber-100 font-semibold"
+                        : "text-sidebar-muted hover:bg-white/5 hover:text-amber-100"
+                    )}
+                  >
+                    <item.icon className="w-3.5 h-3.5" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {!isAdmin && (
           <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>

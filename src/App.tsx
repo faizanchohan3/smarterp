@@ -40,6 +40,10 @@ import Settings from "./pages/Settings";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import Karigars from "./pages/Karigars";
+import Repairs from "./pages/Repairs";
+import CustomOrders from "./pages/CustomOrders";
+import CustomOrderDetail from "./pages/CustomOrderDetail";
 
 const queryClient = new QueryClient();
 
@@ -109,6 +113,10 @@ const AppRoutes = () => {
       <Route path="/reports/suppliers" element={<ReportSuppliers />} />
       <Route path="/reports/salaries" element={<ReportSalaries />} />
       <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
+      <Route path="/karigars" element={<Karigars />} />
+      <Route path="/repairs" element={<Repairs />} />
+      <Route path="/custom-orders" element={<CustomOrders />} />
+      <Route path="/custom-orders/:id" element={<CustomOrderDetail />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<NotFound />} />

@@ -366,6 +366,7 @@ export type Database = {
           reference_id: string | null
           sale_id: string | null
           type: string
+          custom_order_id: string | null
         }
         Insert: {
           amount?: number
@@ -378,6 +379,7 @@ export type Database = {
           reference_id?: string | null
           sale_id?: string | null
           type: string
+          custom_order_id?: string | null
         }
         Update: {
           amount?: number
@@ -390,6 +392,7 @@ export type Database = {
           reference_id?: string | null
           sale_id?: string | null
           type?: string
+          custom_order_id?: string | null
         }
         Relationships: [
           {
@@ -414,6 +417,10 @@ export type Database = {
           updated_at: string
           weight_unit: string | null
           weight_value: number | null
+          purity_karat: number | null
+          gross_weight: number | null
+          net_weight: number | null
+          serial_number: string | null
         }
         Insert: {
           business_id: string
@@ -427,6 +434,10 @@ export type Database = {
           updated_at?: string
           weight_unit?: string | null
           weight_value?: number | null
+          purity_karat?: number | null
+          gross_weight?: number | null
+          net_weight?: number | null
+          serial_number?: string | null
         }
         Update: {
           business_id?: string
@@ -440,6 +451,10 @@ export type Database = {
           updated_at?: string
           weight_unit?: string | null
           weight_value?: number | null
+          purity_karat?: number | null
+          gross_weight?: number | null
+          net_weight?: number | null
+          serial_number?: string | null
         }
         Relationships: [
           {
@@ -705,6 +720,9 @@ export type Database = {
           unit_price: number
           weight: number
           weight_unit: string
+          purity_karat: number | null
+          gross_weight: number
+          net_weight: number
         }
         Insert: {
           id?: string
@@ -717,6 +735,9 @@ export type Database = {
           unit_price?: number
           weight?: number
           weight_unit?: string
+          purity_karat?: number | null
+          gross_weight?: number
+          net_weight?: number
         }
         Update: {
           id?: string
@@ -729,6 +750,9 @@ export type Database = {
           unit_price?: number
           weight?: number
           weight_unit?: string
+          purity_karat?: number | null
+          gross_weight?: number
+          net_weight?: number
         }
         Relationships: [
           {
@@ -847,6 +871,232 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      karigars: {
+        Row: {
+          id: string
+          business_id: string
+          name: string
+          phone: string | null
+          address: string | null
+          specialty: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          name: string
+          phone?: string | null
+          address?: string | null
+          specialty?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          name?: string
+          phone?: string | null
+          address?: string | null
+          specialty?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "karigars_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_cards: {
+        Row: {
+          id: string
+          business_id: string
+          job_number: string
+          karigar_id: string | null
+          customer_id: string | null
+          description: string
+          gold_given: number
+          gold_given_unit: string
+          gold_returned: number | null
+          gold_returned_unit: string | null
+          making_charges: number | null
+          service_type: string
+          service_charge: number
+          advance_amount: number
+          item_photo_url: string | null
+          customer_phone_snapshot: string | null
+          status: string
+          given_date: string | null
+          expected_date: string | null
+          returned_date: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          job_number: string
+          karigar_id?: string | null
+          customer_id?: string | null
+          description: string
+          gold_given: number
+          gold_given_unit: string
+          gold_returned?: number | null
+          gold_returned_unit?: string | null
+          making_charges?: number | null
+          service_type: string
+          service_charge: number
+          advance_amount: number
+          item_photo_url?: string | null
+          customer_phone_snapshot?: string | null
+          status: string
+          given_date?: string | null
+          expected_date?: string | null
+          returned_date?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          job_number?: string
+          karigar_id?: string | null
+          customer_id?: string | null
+          description?: string
+          gold_given?: number
+          gold_given_unit?: string
+          gold_returned?: number | null
+          gold_returned_unit?: string | null
+          making_charges?: number | null
+          service_type?: string
+          service_charge?: number
+          advance_amount?: number
+          item_photo_url?: string | null
+          customer_phone_snapshot?: string | null
+          status?: string
+          given_date?: string | null
+          expected_date?: string | null
+          returned_date?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_cards_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_cards_karigar_id_fkey"
+            columns: ["karigar_id"]
+            isOneToOne: false
+            referencedRelation: "karigars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_cards_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_orders: {
+        Row: {
+          id: string
+          business_id: string
+          order_number: string
+          customer_id: string | null
+          karigar_id: string | null
+          description: string
+          design_reference_url: string | null
+          estimated_weight: number | null
+          weight_unit: string
+          purity_karat: number | null
+          total_price: number
+          advance_amount: number
+          paid_amount: number
+          status: string
+          order_date: string
+          expected_delivery_date: string | null
+          delivered_date: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          order_number: string
+          customer_id?: string | null
+          karigar_id?: string | null
+          description: string
+          design_reference_url?: string | null
+          estimated_weight?: number | null
+          weight_unit: string
+          purity_karat?: number | null
+          total_price: number
+          advance_amount: number
+          paid_amount: number
+          status: string
+          order_date: string
+          expected_delivery_date?: string | null
+          delivered_date?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          order_number?: string
+          customer_id?: string | null
+          karigar_id?: string | null
+          description?: string
+          design_reference_url?: string | null
+          estimated_weight?: number | null
+          weight_unit?: string
+          purity_karat?: number | null
+          total_price?: number
+          advance_amount?: number
+          paid_amount?: number
+          status?: string
+          order_date?: string
+          expected_delivery_date?: string | null
+          delivered_date?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_karigar_id_fkey"
+            columns: ["karigar_id"]
+            isOneToOne: false
+            referencedRelation: "karigars"
             referencedColumns: ["id"]
           },
         ]
