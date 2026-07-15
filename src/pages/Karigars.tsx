@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
@@ -6,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 
 const Karigars = () => {
+  const navigate = useNavigate();
   const { data, create, update, remove } = useBusinessData("karigars" as any);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -19,6 +21,12 @@ const Karigars = () => {
     { key: "specialty", label: "Specialty" },
     { key: "phone", label: "Phone" },
     { key: "address", label: "Address" },
+    { key: "id", label: "Ledger", render: (_: string, row: any) => (
+      <Button size="sm" variant="outline" className="gap-1" onClick={(e) => {
+        e.stopPropagation();
+        navigate(`/ledger?tab=karigar&id=${row.id}`);
+      }}><BookOpen className="w-3.5 h-3.5" /> Ledger</Button>
+    )},
   ];
 
   const resetForm = () => setForm({ name: "", phone: "", address: "", specialty: "" });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
 const Employees = () => {
+  const navigate = useNavigate();
   const { data, create, update, remove, fetch: fetchEmployees } = useBusinessData("employees");
+  const { data: salaries, fetch: fetchSalaries } = useBusinessData("salaries");
   const { businessId } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -22,11 +25,21 @@ const Employees = () => {
   const [salaryMonth, setSalaryMonth] = useState("");
   const [form, setForm] = useState({ full_name: "", phone: "", position: "", salary: "" });
 
+  // Is this employee's salary paid for the current month?
+  const currentMonthKey = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const isPaidThisMonth = (empId: string) =>
+    salaries.some((s: any) => s.employee_id === empId && String(s.salary_month || "").slice(0, 7) === currentMonthKey);
+
   const columns = [
     { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
     { key: "position", label: "Position" },
     { key: "salary", label: "Salary (PKR)", render: (v: number) => formatCurrency(v) },
+    { key: "id", label: "This Month", render: (_: string, row: any) => (
+      isPaidThisMonth(row.id)
+        ? <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs font-medium">Paid</span>
+        : <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-xs font-medium">Unpaid</span>
+    )},
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,8 +79,19 @@ const Employees = () => {
       balance: 0,
     });
 
-    toast({ title: "Salary paid and added to expenses" });
+    // Record in payments so it shows on the Payments page too
+    await (supabase.from("payments") as any).insert({
+      business_id: businessId,
+      type: "employee_payment",
+      reference_id: selectedEmp.id,
+      amount: Number(selectedEmp.salary) || 0,
+      description: `Salary - ${salaryMonth}`,
+      payment_method: "cash",
+    });
+
+    toast({ title: "Salary paid — added to expenses, ledger & payments" });
     setSalaryOpen(false);
+    fetchSalaries();
   };
 
   const openEdit = (row: any) => {
@@ -105,14 +129,20 @@ const Employees = () => {
         <DataTable
           columns={[...columns, {
             key: "id",
-            label: "Pay Salary",
+            label: "Actions",
             render: (_: any, row: any) => (
-              <Button size="sm" variant="outline" onClick={(e) => {
-                e.stopPropagation();
-                setSelectedEmp(row);
-                setSalaryMonth(new Date().toISOString().slice(0, 10));
-                setSalaryOpen(true);
-              }}>Pay</Button>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEmp(row);
+                  setSalaryMonth(new Date().toISOString().slice(0, 10));
+                  setSalaryOpen(true);
+                }}>Pay</Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/ledger?tab=employee&id=${row.id}`);
+                }}><BookOpen className="w-3.5 h-3.5" /> Ledger</Button>
+              </div>
             ),
           }]}
           data={data}

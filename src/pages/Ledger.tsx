@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
@@ -18,9 +19,14 @@ const Ledger = () => {
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: karigars } = useBusinessData("karigars");
   const { data: employees } = useBusinessData("employees");
-  const [activeTab, setActiveTab] = useState("customer");
+  const [searchParams] = useSearchParams();
+  const initialTab = ["customer", "supplier", "karigar", "employee"].includes(searchParams.get("tab") || "")
+    ? (searchParams.get("tab") as string) : "customer";
+  const initialId = searchParams.get("id") || "all";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [selected, setSelected] = useState<Record<string, string>>({
     customer: "all", supplier: "all", karigar: "all", employee: "all",
+    [initialTab]: initialId,
   });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
