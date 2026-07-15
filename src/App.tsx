@@ -36,8 +36,8 @@ import ReportCustomers from "./pages/reports/ReportCustomers";
 import ReportSuppliers from "./pages/reports/ReportSuppliers";
 import ReportSalaries from "./pages/reports/ReportSalaries";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminShops from "./pages/admin/AdminShops";
-import AdminUsers from "./pages/admin/AdminUsers";
+import AdminShopsEnhanced from "./pages/admin/AdminShopsEnhanced";
+import AdminUsersEnhanced from "./pages/admin/AdminUsersEnhanced";
 import Settings from "./pages/Settings";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import ResetPassword from "./pages/ResetPassword";
@@ -74,8 +74,8 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/shops" element={<AdminShops />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/shops" element={<AdminShopsEnhanced />} />
+        <Route path="/admin/users" element={<AdminUsersEnhanced />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     );
