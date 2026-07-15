@@ -25,7 +25,7 @@ const Ledger = () => {
   };
 
   const columns = [
-    { key: "date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+    { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
     { key: "description", label: "Description" },
     { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
     { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },

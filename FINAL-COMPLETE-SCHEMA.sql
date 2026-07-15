@@ -464,6 +464,7 @@ CREATE TABLE public.job_cards (
   job_number TEXT NOT NULL,
   description TEXT,
   gold_given NUMERIC(12,4),
+  given_date DATE,
   date_given DATE,
   weight_unit TEXT DEFAULT 'gram',
   making_charges NUMERIC(12,2) DEFAULT 0,

@@ -17,16 +17,18 @@ const CustomerDetail = () => {
   const navigate = useNavigate();
   const { data: customers } = useBusinessData("customers");
   const { data: sales } = useBusinessData("sales");
-  const { data: customerLedgerData } = useBusinessData("customer_ledger");
+  const { data: ledgerEntries } = useBusinessData("ledger_entries");
+  const { data: payments } = useBusinessData("payments");
 
   const customer = customers.find((c: any) => c.id === id);
   const customerSales = sales.filter((s: any) => s.customer_id === id);
-  const customerLedger = customerLedgerData.filter((e: any) => e.customer_id === id);
+  const customerLedger = ledgerEntries.filter((e: any) => e.entry_type === "customer" && e.reference_id === id);
+  const customerPayments = payments.filter((p: any) => p.type === "customer_payment" && p.reference_id === id);
 
   const totalSales = customerSales.reduce((s: number, sale: any) => s + Number(sale.final_amount), 0);
   const totalPaid = customerSales.reduce((s: number, sale: any) => s + Number(sale.paid_amount), 0);
-  const totalLedgerCredit = customerLedger.reduce((s: number, e: any) => s + Number(e.credit), 0);
-  const remaining = totalSales - totalPaid;
+  const totalPaymentsReceived = customerPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+  const remaining = totalSales - totalPaid - totalPaymentsReceived;
 
   const calcRunningBalance = (entries: any[]) => {
     let balance = 0;
@@ -148,7 +150,7 @@ const CustomerDetail = () => {
           <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Customer Ledger</CardTitle></CardHeader>
           <CardContent>
             <DataTable columns={[
-              { key: "date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+              { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
               { key: "description", label: "Description" },
               { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
               { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
