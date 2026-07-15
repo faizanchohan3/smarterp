@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 const Employees = () => {
   const { data, create, update, remove, fetch: fetchEmployees } = useBusinessData("employees");
@@ -25,7 +26,7 @@ const Employees = () => {
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },
     { key: "role", label: "Role" },
-    { key: "salary", label: "Salary", render: (v: number) => `$${Number(v).toLocaleString()}` },
+    { key: "salary", label: "Salary (PKR)", render: (v: number) => formatCurrency(v) },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {

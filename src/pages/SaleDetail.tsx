@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { ArrowLeft, Printer, MessageSquare, Wallet } from "lucide-react";
+import QRCode from "qrcode";
 
 const TOLA_IN_GRAMS = 11.664;
 const RATTI_PER_GRAM = 8;
@@ -46,6 +47,7 @@ const SaleDetail = () => {
   const { data: customers } = useBusinessData("customers");
   const { data: products } = useBusinessData("products");
   const { toast } = useToast();
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [repayOpen, setRepayOpen] = useState(false);
@@ -76,6 +78,12 @@ const SaleDetail = () => {
     };
     fetchAll();
   }, [id]);
+
+  useEffect(() => {
+    if (sale && qrCanvasRef.current) {
+      QRCode.toCanvas(qrCanvasRef.current, sale.invoice_number, { width: 120, margin: 2 }).catch(() => {});
+    }
+  }, [sale?.id, sale?.invoice_number]);
 
   const recordRepayment = async () => {
     const amt = parseFloat(repayAmount);
@@ -261,6 +269,7 @@ const SaleDetail = () => {
                 <h3 className="text-lg font-bold">{sale.invoice_number}</h3>
                 <p className="text-sm text-muted-foreground">{new Date(sale.created_at).toLocaleDateString()}</p>
                 <StatusBadge status={computedStatus} className="mt-2" />
+                <canvas ref={qrCanvasRef} className="mt-3 mx-auto" />
               </div>
             </div>
 
@@ -420,6 +429,7 @@ const SaleDetail = () => {
                 <div><span style={{ fontWeight: "600" }}>Gold Rate: </span>{formatCurrency((sale as any).tola_rate)} / Tola</div>
               )}
               <div><span style={{ fontWeight: "600" }}>Report No: </span>{sale.invoice_number}</div>
+              <canvas ref={qrCanvasRef} style={{ marginTop: "12px", display: "block", marginLeft: "auto", marginRight: 0 }} />
             </div>
           </div>
 
