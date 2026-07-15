@@ -70,6 +70,22 @@ const CustomOrders = () => {
       expected_delivery_date: form.expected_delivery_date || null,
     });
 
+    const totalPrice = parseFloat(form.total_price) || 0;
+
+    // Debit customer ledger with the full order price (customer owes this)
+    if (ok && totalPrice > 0 && form.customer_id) {
+      await (supabase.from("ledger_entries") as any).insert({
+        business_id: businessId,
+        entry_type: "customer",
+        reference_id: form.customer_id,
+        description: `Custom Order - ${orderNumber}`,
+        debit: totalPrice,
+        credit: 0,
+        balance: 0,
+      });
+    }
+
+    // Credit the advance received against it
     if (ok && advanceAmt > 0 && form.customer_id) {
       await (supabase.from("ledger_entries") as any).insert({
         business_id: businessId,

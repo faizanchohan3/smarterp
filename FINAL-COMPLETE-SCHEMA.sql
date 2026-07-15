@@ -200,6 +200,7 @@ CREATE TABLE public.sales (
   business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   invoice_number TEXT NOT NULL,
+  total_amount NUMERIC(12,2) DEFAULT 0,
   final_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   tola_rate NUMERIC(12,2),
