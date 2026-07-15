@@ -55,6 +55,17 @@ const Employees = () => {
       amount: selectedEmp.salary,
     });
 
+    // Record in employee ledger (payment made to employee)
+    await (supabase.from("ledger_entries") as any).insert({
+      business_id: businessId,
+      entry_type: "employee",
+      reference_id: selectedEmp.id,
+      description: `Salary Paid - ${salaryMonth}`,
+      debit: Number(selectedEmp.salary) || 0,
+      credit: 0,
+      balance: 0,
+    });
+
     toast({ title: "Salary paid and added to expenses" });
     setSalaryOpen(false);
   };

@@ -471,6 +471,7 @@ CREATE TABLE public.job_cards (
   date_given DATE,
   weight_unit TEXT DEFAULT 'gram',
   making_charges NUMERIC(12,2) DEFAULT 0,
+  karigar_charges NUMERIC(12,2) DEFAULT 0,
   service_type TEXT NOT NULL DEFAULT 'repair',
   service_charge NUMERIC(12,2) NOT NULL DEFAULT 0,
   advance_amount NUMERIC(12,2) NOT NULL DEFAULT 0,

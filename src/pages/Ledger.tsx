@@ -16,11 +16,21 @@ const Ledger = () => {
   const { data: ledgerEntries } = useBusinessData("ledger_entries");
   const { data: customers } = useBusinessData("customers");
   const { data: suppliers } = useBusinessData("suppliers");
+  const { data: karigars } = useBusinessData("karigars");
+  const { data: employees } = useBusinessData("employees");
   const [activeTab, setActiveTab] = useState("customer");
-  const [selectedCustomer, setSelectedCustomer] = useState("all");
-  const [selectedSupplier, setSelectedSupplier] = useState("all");
+  const [selected, setSelected] = useState<Record<string, string>>({
+    customer: "all", supplier: "all", karigar: "all", employee: "all",
+  });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  const partyLists: Record<string, { list: any[]; label: string; nameKey: string; title: string }> = {
+    customer: { list: customers, label: "Customer", nameKey: "name", title: "Customer Ledger Report" },
+    supplier: { list: suppliers, label: "Supplier", nameKey: "name", title: "Supplier Ledger Report" },
+    karigar:  { list: karigars, label: "Karigar", nameKey: "name", title: "Karigar Ledger Report" },
+    employee: { list: employees, label: "Employee", nameKey: "full_name", title: "Employee Ledger Report" },
+  };
 
   const filterByDate = (entries: any[]) => entries.filter((e: any) => {
     const d = new Date(e.created_at);
@@ -29,10 +39,8 @@ const Ledger = () => {
     return true;
   });
 
-  const customerEntries = filterByDate(ledgerEntries.filter((e: any) =>
-    e.entry_type === "customer" && (selectedCustomer === "all" || e.reference_id === selectedCustomer)));
-  const supplierEntries = filterByDate(ledgerEntries.filter((e: any) =>
-    e.entry_type === "supplier" && (selectedSupplier === "all" || e.reference_id === selectedSupplier)));
+  const entriesFor = (type: string) => filterByDate(ledgerEntries.filter((e: any) =>
+    e.entry_type === type && (selected[type] === "all" || e.reference_id === selected[type])));
 
   const calcRunningBalance = (entries: any[]) => {
     let balance = 0;
@@ -42,55 +50,43 @@ const Ledger = () => {
     }).reverse();
   };
 
-  const partyName = (entry: any, list: any[]) => list.find((p: any) => p.id === entry.reference_id)?.name || "-";
+  const columnsFor = (type: string) => {
+    const { list, label, nameKey } = partyLists[type];
+    return [
+      { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+      ...(selected[type] === "all" ? [{
+        key: "reference_id", label,
+        render: (_: string, row: any) => list.find((p: any) => p.id === row.reference_id)?.[nameKey] || "-",
+      }] : []),
+      { key: "description", label: "Description" },
+      { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
+      { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
+      { key: "running_balance", label: "Balance", render: (v: number) => (
+        <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.abs(v))}</span>
+      )},
+    ];
+  };
 
-  const customerColumns = [
-    { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
-    ...(selectedCustomer === "all" ? [{ key: "reference_id", label: "Customer", render: (_: string, row: any) => partyName(row, customers) }] : []),
-    { key: "description", label: "Description" },
-    { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-    { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-    { key: "running_balance", label: "Balance", render: (v: number) => (
-      <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(v)}</span>
-    )},
-  ];
-
-  const supplierColumns = [
-    { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
-    ...(selectedSupplier === "all" ? [{ key: "reference_id", label: "Supplier", render: (_: string, row: any) => partyName(row, suppliers) }] : []),
-    { key: "description", label: "Description" },
-    { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-    { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-    { key: "running_balance", label: "Balance", render: (v: number) => (
-      <span className={v > 0 ? "text-success font-medium" : "text-destructive font-medium"}>{formatCurrency(v)}</span>
-    )},
-  ];
-
-  const custWithBalance = calcRunningBalance(customerEntries);
-  const supWithBalance = calcRunningBalance(supplierEntries);
-
-  const activeEntries = activeTab === "customer" ? custWithBalance : supWithBalance;
+  const activeConfig = partyLists[activeTab];
+  const activeEntries = calcRunningBalance(entriesFor(activeTab));
   const totalDebit = activeEntries.reduce((s: number, e: any) => s + Number(e.debit || 0), 0);
   const totalCredit = activeEntries.reduce((s: number, e: any) => s + Number(e.credit || 0), 0);
   const netBalance = totalDebit - totalCredit;
 
-  const reportSubtitle = activeTab === "customer"
-    ? (selectedCustomer === "all" ? "All Customers" : customers.find((c: any) => c.id === selectedCustomer)?.name || "")
-    : (selectedSupplier === "all" ? "All Suppliers" : suppliers.find((s: any) => s.id === selectedSupplier)?.name || "");
+  const selectedName = selected[activeTab] === "all"
+    ? `All ${activeConfig.label}s`
+    : activeConfig.list.find((p: any) => p.id === selected[activeTab])?.[activeConfig.nameKey] || "";
   const dateRangeLabel = dateFrom || dateTo ? ` (${dateFrom || "start"} → ${dateTo || "today"})` : "";
 
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
-        <ReportHeader
-          title={activeTab === "customer" ? "Customer Ledger Report" : "Supplier Ledger Report"}
-          subtitle={`${reportSubtitle}${dateRangeLabel}`}
-        />
+        <ReportHeader title={activeConfig.title} subtitle={`${selectedName}${dateRangeLabel}`} />
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
           <div>
             <h1 className="text-2xl font-bold">Ledger</h1>
-            <p className="text-sm text-muted-foreground">Customer & supplier ledger accounts</p>
+            <p className="text-sm text-muted-foreground">Customer, supplier, karigar & employee ledgers</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
             <div className="flex gap-2 items-center bg-card border rounded-lg px-3 py-1.5">
@@ -114,38 +110,30 @@ const Ledger = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="print:hidden">
-            <TabsTrigger value="customer">Customer Ledger</TabsTrigger>
-            <TabsTrigger value="supplier">Supplier Ledger</TabsTrigger>
+          <TabsList className="print:hidden flex-wrap h-auto">
+            <TabsTrigger value="customer">Customer</TabsTrigger>
+            <TabsTrigger value="supplier">Supplier</TabsTrigger>
+            <TabsTrigger value="karigar">Karigar</TabsTrigger>
+            <TabsTrigger value="employee">Employee</TabsTrigger>
           </TabsList>
-          <TabsContent value="customer" className="space-y-4">
-            <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-              <SelectTrigger className="w-64 print:hidden"><SelectValue placeholder="All Customers" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
-                {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Card>
-              <CardContent className="pt-4">
-                <DataTable columns={customerColumns} data={custWithBalance} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="supplier" className="space-y-4">
-            <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-              <SelectTrigger className="w-64 print:hidden"><SelectValue placeholder="All Suppliers" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Suppliers</SelectItem>
-                {suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Card>
-              <CardContent className="pt-4">
-                <DataTable columns={supplierColumns} data={supWithBalance} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {Object.keys(partyLists).map((type) => (
+            <TabsContent key={type} value={type} className="space-y-4">
+              <Select value={selected[type]} onValueChange={v => setSelected({ ...selected, [type]: v })}>
+                <SelectTrigger className="w-64 print:hidden"><SelectValue placeholder={`All ${partyLists[type].label}s`} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All {partyLists[type].label}s</SelectItem>
+                  {partyLists[type].list.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p[partyLists[type].nameKey]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Card>
+                <CardContent className="pt-4">
+                  <DataTable columns={columnsFor(type)} data={type === activeTab ? activeEntries : calcRunningBalance(entriesFor(type))} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
         </Tabs>
 
         {/* On-screen totals */}

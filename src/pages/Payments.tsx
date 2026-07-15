@@ -18,10 +18,12 @@ const Payments = () => {
   const { data: payments, fetch: fetchPayments } = useBusinessData("payments");
   const { data: customers } = useBusinessData("customers");
   const { data: suppliers } = useBusinessData("suppliers");
+  const { data: karigars } = useBusinessData("karigars");
+  const { data: employees } = useBusinessData("employees");
   const { businessId } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"customer_payment" | "supplier_payment">("customer_payment");
+  const [type, setType] = useState<"customer_payment" | "supplier_payment" | "karigar_payment" | "employee_payment">("customer_payment");
   const [referenceId, setReferenceId] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -43,12 +45,14 @@ const Payments = () => {
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
+    // customer payment = money in (credit their ledger); all others = money out (debit their ledger)
+    const entryType = type.replace("_payment", "");
     await (supabase.from("ledger_entries") as any).insert({
       business_id: businessId,
-      entry_type: type === "customer_payment" ? "customer" : "supplier",
+      entry_type: entryType,
       reference_id: referenceId,
-      description: description || `Payment received`,
-      debit: type === "supplier_payment" ? parseFloat(amount) : 0,
+      description: description || (type === "customer_payment" ? "Payment received" : "Payment made"),
+      debit: type === "customer_payment" ? 0 : parseFloat(amount),
       credit: type === "customer_payment" ? parseFloat(amount) : 0,
       balance: 0,
     });
@@ -65,12 +69,21 @@ const Payments = () => {
 
   const customerPayments = payments.filter((p: any) => p.type === "customer_payment");
   const supplierPayments = payments.filter((p: any) => p.type === "supplier_payment");
+  const karigarPayments = payments.filter((p: any) => p.type === "karigar_payment");
+  const employeePayments = payments.filter((p: any) => p.type === "employee_payment");
+
+  const partyOptions: Record<string, { list: any[]; nameKey: string; placeholder: string }> = {
+    customer_payment: { list: customers, nameKey: "name", placeholder: "Select Customer" },
+    supplier_payment: { list: suppliers, nameKey: "name", placeholder: "Select Supplier" },
+    karigar_payment: { list: karigars, nameKey: "name", placeholder: "Select Karigar" },
+    employee_payment: { list: employees, nameKey: "full_name", placeholder: "Select Employee" },
+  };
 
   const columns = [
     { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
     { key: "reference_id", label: "Name", render: (v: string, row: any) => {
-      if (row.type === "customer_payment") return customers.find((c: any) => c.id === v)?.name || "-";
-      return suppliers.find((s: any) => s.id === v)?.name || "-";
+      const opt = partyOptions[row.type] || partyOptions.customer_payment;
+      return opt.list.find((p: any) => p.id === v)?.[opt.nameKey] || "-";
     }},
     { key: "amount", label: "Amount", render: (v: number) => formatCurrency(v) },
     { key: "payment_method", label: "Method", render: (v: string) => v ? v.replace("_", " ") : "-" },
@@ -98,13 +111,15 @@ const Payments = () => {
                   <SelectContent>
                     <SelectItem value="customer_payment">Customer Payment (Incoming)</SelectItem>
                     <SelectItem value="supplier_payment">Supplier Payment (Outgoing)</SelectItem>
+                    <SelectItem value="karigar_payment">Karigar Payment (Outgoing)</SelectItem>
+                    <SelectItem value="employee_payment">Employee Payment (Outgoing)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={referenceId} onValueChange={setReferenceId}>
-                  <SelectTrigger><SelectValue placeholder={type === "customer_payment" ? "Select Customer" : "Select Supplier"} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={partyOptions[type].placeholder} /></SelectTrigger>
                   <SelectContent>
-                    {(type === "customer_payment" ? customers : suppliers).map((item: any) => (
-                      <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                    {partyOptions[type].list.map((item: any) => (
+                      <SelectItem key={item.id} value={item.id}>{item[partyOptions[type].nameKey]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -129,15 +144,23 @@ const Payments = () => {
         </div>
 
         <Tabs defaultValue="incoming">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="incoming">Incoming (Customer)</TabsTrigger>
             <TabsTrigger value="outgoing">Outgoing (Supplier)</TabsTrigger>
+            <TabsTrigger value="karigar">Karigar</TabsTrigger>
+            <TabsTrigger value="employee">Employee</TabsTrigger>
           </TabsList>
           <TabsContent value="incoming">
             <DataTable columns={columns} data={customerPayments} />
           </TabsContent>
           <TabsContent value="outgoing">
             <DataTable columns={columns} data={supplierPayments} />
+          </TabsContent>
+          <TabsContent value="karigar">
+            <DataTable columns={columns} data={karigarPayments} />
+          </TabsContent>
+          <TabsContent value="employee">
+            <DataTable columns={columns} data={employeePayments} />
           </TabsContent>
         </Tabs>
       </div>

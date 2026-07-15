@@ -34,6 +34,7 @@ const Repairs = () => {
     gold_given: "",
     gold_given_unit: "gram",
     service_charge: "",
+    karigar_charges: "",
     advance_amount: "",
     given_date: new Date().toISOString().split("T")[0],
     expected_date: "",
@@ -43,6 +44,7 @@ const Repairs = () => {
   const resetForm = () => setForm({
     customer_id: "", customer_phone_snapshot: "", karigar_id: "", service_type: "repair",
     description: "", gold_given: "", gold_given_unit: "gram", service_charge: "",
+    karigar_charges: "",
     advance_amount: "", given_date: new Date().toISOString().split("T")[0],
     expected_date: "", item_photo_url: "",
   });
@@ -58,6 +60,7 @@ const Repairs = () => {
       gold_given: String(row.gold_given || 0),
       gold_given_unit: row.gold_given_unit || "gram",
       service_charge: String(row.service_charge || 0),
+      karigar_charges: String(row.karigar_charges || 0),
       advance_amount: String(row.advance_amount || 0),
       given_date: row.given_date || new Date().toISOString().split("T")[0],
       expected_date: row.expected_date || "",
@@ -77,6 +80,7 @@ const Repairs = () => {
       gold_given: parseFloat(form.gold_given) || 0,
       gold_given_unit: form.gold_given_unit,
       service_charge: parseFloat(form.service_charge) || 0,
+      karigar_charges: parseFloat(form.karigar_charges) || 0,
       advance_amount: parseFloat(form.advance_amount) || 0,
       given_date: form.given_date || null,
       expected_date: form.expected_date || null,
@@ -97,6 +101,19 @@ const Repairs = () => {
           reference_id: form.customer_id,
           description: `Repair Advance - ${jobNumber}`,
           credit: parseFloat(form.advance_amount),
+          debit: 0,
+          balance: 0,
+        });
+      }
+
+      // Karigar charges agreed: credit karigar ledger (we owe the karigar)
+      if (ok && form.karigar_id && parseFloat(form.karigar_charges) > 0) {
+        await (supabase.from("ledger_entries") as any).insert({
+          business_id: businessId,
+          entry_type: "karigar",
+          reference_id: form.karigar_id,
+          description: `Karigar Charges - ${jobNumber}`,
+          credit: parseFloat(form.karigar_charges),
           debit: 0,
           balance: 0,
         });
@@ -201,6 +218,13 @@ const Repairs = () => {
                   <Input type="number" step="0.01" placeholder="Service Charge (PKR)" value={form.service_charge} onChange={e => setForm({ ...form, service_charge: e.target.value })} />
                   <Input type="number" step="0.01" placeholder="Advance (PKR)" value={form.advance_amount} onChange={e => setForm({ ...form, advance_amount: e.target.value })} />
                 </div>
+
+                <Input
+                  type="number" step="0.01" placeholder="Karigar Charges (PKR) — paid to karigar"
+                  value={form.karigar_charges}
+                  onChange={e => setForm({ ...form, karigar_charges: e.target.value })}
+                  disabled={!form.karigar_id}
+                />
 
                 <div className="grid grid-cols-2 gap-2">
                   <Input type="date" value={form.given_date} onChange={e => setForm({ ...form, given_date: e.target.value })} />
