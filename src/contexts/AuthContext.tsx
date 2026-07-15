@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: biz } = await (supabase
         .from("businesses")
         .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
-        .eq("owner_id", userId);
+        .eq("user_id", userId);
 
       if (biz && biz.length > 0) {
         setBusinessId(biz[0].id);
@@ -133,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!data.user) throw new Error("Signup failed");
 
     const { data: biz, error: bizErr } = await (supabase.from("businesses") as any).insert({
-      owner_id: data.user.id,
+      user_id: data.user.id,
       shop_name: shopNameVal,
       owner_name: ownerNameVal,
       phone,
