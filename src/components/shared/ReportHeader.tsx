@@ -1,86 +1,95 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useRef } from "react";
+import QRCode from "qrcode";
 
 interface ReportHeaderProps {
   title: string;
   subtitle?: string;
-  showQR?: boolean;
-  qrImageUrl?: string;
 }
 
-const ReportHeader = ({ title, subtitle, showQR, qrImageUrl }: ReportHeaderProps) => {
-  const { shopName, ownerName, shopPhone, shopAddress, shopLogo, businessId } = useAuth();
+const ReportHeader = ({ title, subtitle }: ReportHeaderProps) => {
+  const { shopName, ownerName, shopPhone, shopAddress, shopLogo } = useAuth();
+  const whatsappQrRef = useRef<HTMLCanvasElement>(null);
+
+  // Generate WhatsApp QR code
+  useEffect(() => {
+    if (whatsappQrRef.current && shopPhone) {
+      const whatsappUrl = `https://wa.me/${shopPhone.replace(/\D/g, '')}`;
+      QRCode.toCanvas(whatsappQrRef.current, whatsappUrl, {
+        width: 100,
+        margin: 1,
+        color: {
+          dark: "#25D366",
+          light: "#fff"
+        }
+      }).catch(() => {});
+    }
+  }, [shopPhone]);
 
   return (
-    <div className="bg-white border-b-4 border-amber-900 print:border-b-4 print:border-amber-900">
-      {/* Main Header */}
-      <div className="p-6 sm:p-8 border-b-2 border-amber-100">
-        <div className="flex justify-between items-start gap-4">
+    <div className="bg-white print:bg-white">
+      {/* Red Professional Header */}
+      <div className="bg-red-700 text-white p-6 sm:p-8 print:bg-red-700">
+        <div className="flex justify-between items-start gap-6">
           {/* Left: Logo + Shop Name */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-1">
             {shopLogo && (
               <img
                 src={shopLogo}
                 alt="Logo"
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover border border-amber-900"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover border-2 border-white"
               />
             )}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-amber-900 uppercase tracking-wider"
-                  style={{ letterSpacing: "1px" }}>
+            <div className="flex-1">
+              <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-widest leading-tight">
                 {shopName || "Jewellers"}
               </h1>
-              {ownerName && (
-                <p className="text-xs sm:text-sm text-amber-800 font-semibold mt-1">
-                  Chief Executive: {ownerName}
-                </p>
+              <p className="text-sm sm:text-base mt-2 font-semibold opacity-95">
+                {ownerName || "Business Report"}
+              </p>
+              {shopAddress && (
+                <p className="text-xs sm:text-sm mt-1 opacity-90">{shopAddress}</p>
               )}
               {shopPhone && (
-                <p className="text-xs text-gray-600 mt-1">Cell: {shopPhone}</p>
+                <p className="text-xs sm:text-sm mt-1 opacity-90">📞 {shopPhone}</p>
               )}
             </div>
           </div>
 
-          {/* Center: QR Code */}
-          {showQR && qrImageUrl && (
-            <div className="hidden sm:block">
-              <img
-                src={qrImageUrl}
-                alt="QR Code"
-                className="w-20 h-20 border border-amber-900"
-              />
+          {/* Right: WhatsApp QR Code */}
+          {shopPhone && (
+            <div className="flex flex-col items-center gap-2">
+              <canvas ref={whatsappQrRef} className="border-2 border-white p-1 bg-white"></canvas>
+              <p className="text-xs font-semibold text-center">Chat on WhatsApp</p>
             </div>
           )}
+        </div>
 
-          {/* Right: Address + Contact */}
-          <div className="text-right text-xs sm:text-sm text-gray-700">
-            {shopAddress && (
-              <div className="mb-2 font-medium text-gray-800">{shopAddress}</div>
+        {/* Report Title - Professional Alignment */}
+        <div className="mt-6 pt-4 border-t-2 border-red-600">
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-sm sm:text-base mt-2 opacity-90 font-medium">{subtitle}</p>
             )}
-            {shopPhone && (
-              <div className="font-semibold text-amber-900">{shopPhone}</div>
-            )}
-            <p className="text-xs text-gray-500 mt-1">Since 1948</p>
+            <p className="text-xs sm:text-sm mt-3 opacity-85">
+              Generated: {new Date().toLocaleDateString("en-PK", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              })}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Report Title Section */}
-      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 p-4 sm:p-6 border-b-2 border-amber-100">
-        <h2 className="text-xl sm:text-2xl font-bold text-amber-900 uppercase tracking-wider text-center">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-sm text-gray-600 text-center mt-2">{subtitle}</p>
-        )}
-        <p className="text-xs text-gray-500 text-center mt-2">
-          {new Date().toLocaleDateString("en-PK", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          })}
-        </p>
-      </div>
+      {/* Separator Line */}
+      <div className="h-1 bg-gradient-to-r from-red-700 via-red-600 to-red-700"></div>
     </div>
   );
 };
