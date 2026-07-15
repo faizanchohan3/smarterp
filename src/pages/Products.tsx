@@ -91,57 +91,61 @@ const Products = () => {
             <DialogTrigger asChild>
               <Button onClick={() => { setEditing(null); resetForm(); setForm(f => ({ ...f, serial_number: generateSerial() })); setOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Add Product</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? "Edit" : "Add"} Product</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="flex justify-center">
-                  <ImageUpload
-                    currentUrl={form.image_url}
-                    onUpload={(url) => setForm({ ...form, image_url: url })}
-                    folder="products"
-                  />
+                {/* Image */}
+                <div className="flex justify-center pb-2">
+                  <ImageUpload currentUrl={form.image_url} onUpload={(url) => setForm({ ...form, image_url: url })} folder="product-images" />
                 </div>
-                <Input placeholder="Product Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-                <Select value={form.category_id} onValueChange={v => setForm({ ...form, category_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input placeholder="Price" type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required />
-                <Input placeholder="Stock Quantity" type="number" value={form.stock_quantity} onChange={e => setForm({ ...form, stock_quantity: e.target.value })} required />
-                <Input placeholder="Serial Number / Barcode" value={form.serial_number} onChange={e => setForm({ ...form, serial_number: e.target.value })} />
-                <Select value={form.purity_karat} onValueChange={v => setForm({ ...form, purity_karat: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select Purity (Karat)" /></SelectTrigger>
-                  <SelectContent>
-                    {KARAT_TABLE.map((k) => <SelectItem key={k.karat} value={String(k.karat)}>{k.karat}K</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Input placeholder="Gross Weight" type="number" step="0.01" value={form.gross_weight} onChange={e => setForm({ ...form, gross_weight: e.target.value })} />
+
+                {/* Basic Info */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">BASIC INFO</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Product Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="text-sm" />
+                    <Select value={form.category_id} onValueChange={v => setForm({ ...form, category_id: v })}>
+                      <SelectTrigger className="text-sm"><SelectValue placeholder="Category" /></SelectTrigger>
+                      <SelectContent>
+                        {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Tabs value="gram" onValueChange={() => {}}>
-                    <TabsList>
-                      <TabsTrigger value="gram" disabled>g</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Net Weight: {form.gross_weight && form.purity_karat ? fineWeight(parseFloat(form.gross_weight), parseInt(form.purity_karat)).toFixed(4) : "-"} g
-                </div>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Input placeholder="Weight (Legacy)" type="number" step="0.01" value={form.weight_value} onChange={e => setForm({ ...form, weight_value: e.target.value })} />
+
+                {/* Pricing & Stock */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">PRICING & STOCK</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Price (PKR)" type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required className="text-sm" />
+                    <Input placeholder="Stock Qty" type="number" value={form.stock_quantity} onChange={e => setForm({ ...form, stock_quantity: e.target.value })} required className="text-sm" />
                   </div>
-                  <Tabs value={form.weight_unit} onValueChange={v => setForm({ ...form, weight_unit: v })}>
-                    <TabsList>
-                      <TabsTrigger value="gram">Gram</TabsTrigger>
-                      <TabsTrigger value="milligram">mg</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
                 </div>
-                <Button type="submit" className="w-full">{editing ? "Update" : "Create"}</Button>
+
+                {/* Purity & Weight */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">PURITY & WEIGHT</p>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <Select value={form.purity_karat} onValueChange={v => setForm({ ...form, purity_karat: v })}>
+                      <SelectTrigger className="text-sm"><SelectValue placeholder="Purity" /></SelectTrigger>
+                      <SelectContent>
+                        {KARAT_TABLE.map((k) => <SelectItem key={k.karat} value={String(k.karat)}>{k.karat}K</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input placeholder="Gross Weight (g)" type="number" step="0.01" value={form.gross_weight} onChange={e => setForm({ ...form, gross_weight: e.target.value })} className="text-sm" />
+                  </div>
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                    Net Weight: {form.gross_weight && form.purity_karat ? fineWeight(parseFloat(form.gross_weight), parseInt(form.purity_karat)).toFixed(4) : "—"} g
+                  </div>
+                </div>
+
+                {/* Serial & ID */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">IDENTIFICATION</p>
+                  <Input placeholder="Serial Number / Barcode" value={form.serial_number} onChange={e => setForm({ ...form, serial_number: e.target.value })} className="text-sm" />
+                </div>
+
+                <Button type="submit" className="w-full mt-4">{editing ? "Update" : "Create"} Product</Button>
               </form>
             </DialogContent>
           </Dialog>
