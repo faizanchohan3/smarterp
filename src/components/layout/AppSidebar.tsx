@@ -22,6 +22,7 @@ const shopMenuItems = [
   { label: "Products", icon: Package, path: "/products", color: "from-cyan-400 to-blue-500" },
   { label: "Gold Purity Test", icon: FlaskConical, path: "/gold-purity-test", color: "from-yellow-400 to-amber-600" },
   { label: "Gold Rates", icon: Coins, path: "/gold-rates", color: "from-amber-500 to-yellow-600" },
+  { label: "Gold Rate Report", icon: FileSpreadsheet, path: "/gold-rate-report", color: "from-yellow-500 to-amber-600" },
   { label: "Sales", icon: ShoppingCart, path: "/sales", color: "from-amber-400 to-yellow-500" },
   { label: "Purchases", icon: Receipt, path: "/purchases", color: "from-fuchsia-400 to-pink-500" },
   { label: "Expenses", icon: Wallet, path: "/expenses", color: "from-rose-400 to-red-500" },

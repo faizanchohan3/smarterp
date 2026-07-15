@@ -23,6 +23,8 @@ const GoldRates = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     rate_date: new Date().toISOString().slice(0, 10),
+    rate_time: new Date().toTimeString().slice(0, 5),
+    rate_type: "morning",
     tola_24k: "",
     tola_22k: "",
     tola_21k: "",
@@ -36,6 +38,8 @@ const GoldRates = () => {
     const { error } = await (supabase.from("gold_rates" as any) as any).insert({
       business_id: businessId,
       rate_date: form.rate_date,
+      rate_time: form.rate_time || null,
+      rate_type: form.rate_type,
       tola_24k: parseFloat(form.tola_24k) || 0,
       tola_22k: parseFloat(form.tola_22k) || 0,
       tola_21k: parseFloat(form.tola_21k) || 0,
@@ -46,7 +50,7 @@ const GoldRates = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Gold rate saved" });
     setOpen(false);
-    setForm({ rate_date: new Date().toISOString().slice(0, 10), tola_24k: "", tola_22k: "", tola_21k: "", tola_18k: "", silver_tola: "", notes: "" });
+    setForm({ rate_date: new Date().toISOString().slice(0, 10), rate_time: new Date().toTimeString().slice(0, 5), rate_type: "morning", tola_24k: "", tola_22k: "", tola_21k: "", tola_18k: "", silver_tola: "", notes: "" });
     fetch();
     window.dispatchEvent(new Event("gold-rate-updated"));
   };
@@ -56,6 +60,8 @@ const GoldRates = () => {
 
   const columns = [
     { key: "rate_date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+    { key: "rate_time", label: "Time", render: (v: string) => v ? v.slice(0, 5) : "-" },
+    { key: "rate_type", label: "Type", render: (v: string) => v?.charAt(0).toUpperCase() + v?.slice(1) },
     { key: "tola_24k", label: "24K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_22k", label: "22K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_21k", label: "21K / Tola", render: (v: number) => formatCurrency(v) },
@@ -84,9 +90,24 @@ const GoldRates = () => {
               <DialogContent>
                 <DialogHeader><DialogTitle>Add Gold Rate</DialogTitle></DialogHeader>
                 <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Date</label>
+                      <Input type="date" value={form.rate_date} onChange={e => setForm({ ...form, rate_date: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Time</label>
+                      <Input type="time" value={form.rate_time} onChange={e => setForm({ ...form, rate_time: e.target.value })} />
+                    </div>
+                  </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Date</label>
-                    <Input type="date" value={form.rate_date} onChange={e => setForm({ ...form, rate_date: e.target.value })} />
+                    <label className="text-xs text-muted-foreground">Rate Type</label>
+                    <select className="w-full px-3 py-2 border rounded-md text-sm" value={form.rate_type} onChange={e => setForm({ ...form, rate_type: e.target.value })}>
+                      <option value="morning">Morning (6am-12pm)</option>
+                      <option value="afternoon">Afternoon (12pm-6pm)</option>
+                      <option value="evening">Evening (6pm-12am)</option>
+                      <option value="night">Night (12am-6am)</option>
+                    </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div><label className="text-xs">24K / Tola</label><Input type="number" value={form.tola_24k} onChange={e => {

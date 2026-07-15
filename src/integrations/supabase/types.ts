@@ -272,6 +272,8 @@ export type Database = {
           id: string
           notes: string | null
           rate_date: string
+          rate_time: string | null
+          rate_type: string
           silver_tola: number
           tola_18k: number
           tola_21k: number
@@ -285,6 +287,8 @@ export type Database = {
           id?: string
           notes?: string | null
           rate_date?: string
+          rate_time?: string | null
+          rate_type?: string
           silver_tola?: number
           tola_18k?: number
           tola_21k?: number
@@ -298,6 +302,8 @@ export type Database = {
           id?: string
           notes?: string | null
           rate_date?: string
+          rate_time?: string | null
+          rate_type?: string
           silver_tola?: number
           tola_18k?: number
           tola_21k?: number

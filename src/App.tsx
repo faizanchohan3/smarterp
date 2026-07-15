@@ -23,6 +23,7 @@ import Ledger from "./pages/Ledger";
 import Payments from "./pages/Payments";
 import GoldPurityTest from "./pages/GoldPurityTest";
 import GoldRates from "./pages/GoldRates";
+import GoldRateReport from "./pages/GoldRateReport";
 import ReportProfitLoss from "./pages/reports/ReportProfitLoss";
 import ReportReceivables from "./pages/reports/ReportReceivables";
 import ReportPayables from "./pages/reports/ReportPayables";
@@ -101,6 +102,7 @@ const AppRoutes = () => {
       <Route path="/payments" element={<Payments />} />
       <Route path="/gold-purity-test" element={<GoldPurityTest />} />
       <Route path="/gold-rates" element={<GoldRates />} />
+      <Route path="/gold-rate-report" element={<GoldRateReport />} />
       <Route path="/reports" element={<Navigate to="/reports/profit-loss" replace />} />
       <Route path="/reports/profit-loss" element={<ReportProfitLoss />} />
       <Route path="/reports/receivables" element={<ReportReceivables />} />
