@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { Plus, Trash2, Printer, ShoppingCart, Wallet, ArrowDownCircle, Scan } from "lucide-react";
 import StatCard from "@/components/shared/StatCard";
-import { TOLA_TO_GRAM, RATTI_PER_GRAM, fineWeight } from "@/lib/gold";
+import { TOLA_TO_GRAM, RATTI_PER_GRAM, fineWeight, getLatestRate, formatRateTime } from "@/lib/gold";
 
 const TOLA_IN_GRAMS = TOLA_TO_GRAM;
 const RATTI_IN_GRAMS = RATTI_PER_GRAM;
@@ -54,7 +54,7 @@ const Sales = () => {
   const { data: products } = useBusinessData("products");
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: goldRates } = useBusinessData("gold_rates" as any);
-  const latestRate: any = [...goldRates].sort((a: any, b: any) => (a.rate_date < b.rate_date ? 1 : -1))[0];
+  const latestRate: any = getLatestRate(goldRates as any[]);
   const [karat, setKarat] = useState<string>("22k");
 
   const applyKaratRate = (k: string) => {
@@ -391,7 +391,11 @@ const Sales = () => {
                   </div>
                   {latestRate && (
                     <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-                      <div className="font-semibold mb-1">Today's Gold Rate ({new Date(latestRate.rate_date).toLocaleDateString()}) — pick one to auto-fill:</div>
+                      <div className="font-semibold mb-1">
+                        Latest Gold Rate ({new Date(latestRate.rate_date).toLocaleDateString()}
+                        {latestRate.rate_time ? ` ${formatRateTime(latestRate.rate_time)}` : ""}
+                        {latestRate.rate_type ? ` — ${latestRate.rate_type}` : ""}) — pick one to auto-fill:
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           { k: "24k", label: `24K ${formatCurrency(latestRate.tola_24k)}` },

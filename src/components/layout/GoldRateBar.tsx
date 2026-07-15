@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Coins, X, Eye } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { formatRateTime } from "@/lib/gold";
 import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "gold-rate-bar-hidden";
@@ -18,6 +19,8 @@ const GoldRateBar = () => {
       .select("*")
       .eq("business_id", businessId)
       .order("rate_date", { ascending: false })
+      .order("rate_time", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
       .limit(1);
     if (data && data.length) setRate(data[0]);
   };
@@ -60,7 +63,9 @@ const GoldRateBar = () => {
             <span className="bg-white/30 px-2 py-0.5 rounded hidden sm:inline">21K: {formatCurrency(rate.tola_21k)}/tola</span>
             <span className="bg-white/30 px-2 py-0.5 rounded hidden md:inline">18K: {formatCurrency(rate.tola_18k)}/tola</span>
             <span className="bg-white/30 px-2 py-0.5 rounded hidden lg:inline">Silver: {formatCurrency(rate.silver_tola)}/tola</span>
-            <span className="text-amber-900/70 hidden sm:inline">({new Date(rate.rate_date).toLocaleDateString()})</span>
+            <span className="text-amber-900/70 hidden sm:inline">
+              (Updated: {new Date(rate.rate_date).toLocaleDateString()}{rate.rate_time ? ` ${formatRateTime(rate.rate_time)}` : ""}{rate.rate_type ? ` — ${rate.rate_type}` : ""})
+            </span>
           </div>
         ) : (
           <span className="italic opacity-80">No rates yet — add from Gold Rates page</span>

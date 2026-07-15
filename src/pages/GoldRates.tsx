@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { Plus, Printer, Coins, TrendingUp, Calendar } from "lucide-react";
-import { tolaRateForKarat } from "@/lib/gold";
+import { tolaRateForKarat, sortRatesLatestFirst } from "@/lib/gold";
 
 const GoldRates = () => {
   const { businessId } = useAuth();
@@ -58,8 +58,8 @@ const GoldRates = () => {
     window.dispatchEvent(new Event("gold-rate-updated"));
   };
 
-  const sorted = [...rates].sort((a: any, b: any) => (a.rate_date < b.rate_date ? 1 : -1));
-  const latest = sorted[0];
+  const sorted = sortRatesLatestFirst(rates as any[]);
+  const latest: any = sorted[0];
 
   const columns = [
     { key: "rate_date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },

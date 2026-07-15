@@ -40,3 +40,26 @@ export function tolaRateForKarat(tola24k: number, karat: number): number {
 export function purityPercent(karat: number): number {
   return Number(((karat / 24) * 100).toFixed(2));
 }
+
+// Sort gold rates so the truly latest entry comes first:
+// by date, then time-of-day, then insertion time (created_at).
+export function sortRatesLatestFirst<T extends { rate_date?: string; rate_time?: string | null; created_at?: string }>(rates: T[]): T[] {
+  return [...rates].sort((a, b) => {
+    if ((a.rate_date || "") !== (b.rate_date || "")) return (a.rate_date || "") < (b.rate_date || "") ? 1 : -1;
+    if ((a.rate_time || "") !== (b.rate_time || "")) return (a.rate_time || "") < (b.rate_time || "") ? 1 : -1;
+    return (a.created_at || "") < (b.created_at || "") ? 1 : -1;
+  });
+}
+
+export function getLatestRate<T extends { rate_date?: string; rate_time?: string | null; created_at?: string }>(rates: T[]): T | undefined {
+  return sortRatesLatestFirst(rates)[0];
+}
+
+// "14:30" -> "2:30 PM" label; returns "" if no time
+export function formatRateTime(time?: string | null): string {
+  if (!time) return "";
+  const [h, m] = time.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+}

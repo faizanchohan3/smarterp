@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-type TableName = "customers" | "suppliers" | "employees" | "categories" | "products" | "sales" | "purchases" | "expenses" | "payments" | "ledger_entries" | "salaries" | "sale_items" | "purchase_items" | "gold_rates" | "chart_of_accounts" | "karigars" | "job_cards" | "custom_orders";
+type TableName = "customers" | "suppliers" | "employees" | "categories" | "products" | "sales" | "purchases" | "expenses" | "payments" | "ledger_entries" | "salaries" | "sale_items" | "purchase_items" | "gold_rates" | "chart_of_accounts" | "karigars" | "job_cards" | "custom_orders" | "customer_ledger" | "employee_ledger" | "karigar_ledger";
 
 export function useBusinessData(table: TableName) {
   const { businessId } = useAuth();
