@@ -117,12 +117,10 @@ const GoldRates = () => {
                         ...form,
                         tola_24k: v,
                         tola_22k: n > 0 ? String(tolaRateForKarat(n, 22)) : form.tola_22k,
-                        tola_21k: n > 0 ? String(tolaRateForKarat(n, 21)) : form.tola_21k,
                         tola_18k: n > 0 ? String(tolaRateForKarat(n, 18)) : form.tola_18k,
                       });
                     }} /></div>
                     <div><label className="text-xs">22K / Tola</label><Input type="number" value={form.tola_22k} onChange={e => setForm({ ...form, tola_22k: e.target.value })} /></div>
-                    <div><label className="text-xs">21K / Tola</label><Input type="number" value={form.tola_21k} onChange={e => setForm({ ...form, tola_21k: e.target.value })} /></div>
                     <div><label className="text-xs">18K / Tola</label><Input type="number" value={form.tola_18k} onChange={e => setForm({ ...form, tola_18k: e.target.value })} /></div>
                     <div className="col-span-2"><label className="text-xs">Silver / Tola</label><Input type="number" value={form.silver_tola} onChange={e => setForm({ ...form, silver_tola: e.target.value })} /></div>
                   </div>
