@@ -45,19 +45,23 @@ const Products = () => {
     e.preventDefault();
     const grossWeight = form.gross_weight ? parseFloat(form.gross_weight) : null;
     const karatValue = form.purity_karat ? parseInt(form.purity_karat) : null;
+    const netWeightCalc = grossWeight && karatValue ? fineWeight(grossWeight, karatValue) : null;
+
     const record = {
       name: form.name,
       category_id: form.category_id || null,
       price: parseFloat(form.price) || 0,
-      weight_value: form.weight_value ? parseFloat(form.weight_value) : null,
+      weight: grossWeight,
+      weight_value: grossWeight,
       weight_unit: form.weight_unit,
       stock_quantity: parseFloat(form.stock_quantity) || 0,
       image_url: form.image_url || null,
       purity_karat: karatValue,
       gross_weight: grossWeight,
-      net_weight: grossWeight && karatValue ? fineWeight(grossWeight, karatValue) : null,
+      net_weight: netWeightCalc,
       serial_number: form.serial_number || null,
     };
+
     const ok = editing ? await update(editing.id, record) : await create(record);
     if (ok) { setOpen(false); setEditing(null); resetForm(); }
   };
