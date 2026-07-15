@@ -3,8 +3,8 @@ import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
-import PrintHeader from "@/components/shared/PrintHeader";
-import PrintFooter from "@/components/shared/PrintFooter";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ const ReportPurchases = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in print-receipt-only">
-        <PrintHeader title="Purchases Report" />
+        <ReportHeader title="Purchases Report" />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
           <div>
             <h1 className="text-2xl font-bold">Purchases Report</h1>
@@ -72,7 +72,7 @@ const ReportPurchases = () => {
             }} />
           </CardContent>
         </Card>
-        <PrintFooter />
+        <ReportFooter />
       </div>
     </AppLayout>
   );

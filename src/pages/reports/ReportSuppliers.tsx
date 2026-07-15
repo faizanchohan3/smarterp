@@ -1,8 +1,8 @@
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
-import PrintHeader from "@/components/shared/PrintHeader";
-import PrintFooter from "@/components/shared/PrintFooter";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
@@ -13,7 +13,7 @@ const ReportSuppliers = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in print-receipt-only">
-        <PrintHeader title="Suppliers Report" />
+        <ReportHeader title="Suppliers Report" />
         <div className="flex items-center justify-between print:hidden">
           <div>
             <h1 className="text-2xl font-bold">Suppliers Report</h1>
@@ -35,7 +35,7 @@ const ReportSuppliers = () => {
             ]} data={suppliers} />
           </CardContent>
         </Card>
-        <PrintFooter />
+        <ReportFooter />
       </div>
     </AppLayout>
   );

@@ -2,8 +2,8 @@ import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatCard from "@/components/shared/StatCard";
-import PrintHeader from "@/components/shared/PrintHeader";
-import PrintFooter from "@/components/shared/PrintFooter";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/currency";
@@ -25,7 +25,7 @@ const ReportPayables = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in print-receipt-only">
-        <PrintHeader title="Payables Report" subtitle="What we owe suppliers" />
+        <ReportHeader title="Payables Report" subtitle="What we owe suppliers" />
         <div className="flex items-center justify-between print:hidden">
           <div>
             <h1 className="text-2xl font-bold">Payables</h1>
@@ -58,7 +58,7 @@ const ReportPayables = () => {
             }} />
           </CardContent>
         </Card>
-        <PrintFooter />
+        <ReportFooter />
       </div>
     </AppLayout>
   );

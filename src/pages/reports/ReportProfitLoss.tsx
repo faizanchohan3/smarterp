@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
-import PrintHeader from "@/components/shared/PrintHeader";
-import PrintFooter from "@/components/shared/PrintFooter";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -88,7 +88,7 @@ const ReportProfitLoss = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <PrintHeader title="Profit & Loss Statement" />
+        <ReportHeader title="Profit & Loss Statement" subtitle="Financial Performance Report" />
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
@@ -216,7 +216,7 @@ const ReportProfitLoss = () => {
           </Card>
         </div>
 
-        <PrintFooter />
+        <ReportFooter />
       </div>
     </AppLayout>
   );

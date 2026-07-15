@@ -5,8 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatCard from "@/components/shared/StatCard";
-import PrintHeader from "@/components/shared/PrintHeader";
-import PrintFooter from "@/components/shared/PrintFooter";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -73,7 +73,7 @@ const GoldRates = () => {
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in print-receipt-only">
-        <PrintHeader title="Gold Rates Report" />
+        <ReportHeader title="Gold Rates Report" subtitle="Daily gold & silver tola rates" />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
           <div>
             <h1 className="text-2xl font-bold">Gold Rates</h1>
@@ -147,7 +147,7 @@ const GoldRates = () => {
             <DataTable columns={columns} data={sorted} onDelete={(row) => remove(row.id)} />
           </CardContent>
         </Card>
-        <PrintFooter />
+        <ReportFooter />
       </div>
     </AppLayout>
   );
