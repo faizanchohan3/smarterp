@@ -24,6 +24,7 @@ const shopMenuItems = [
   { label: "Gold Rates", icon: Coins, path: "/gold-rates", color: "from-amber-500 to-yellow-600" },
   { label: "Gold Rate Report", icon: FileSpreadsheet, path: "/gold-rate-report", color: "from-yellow-500 to-amber-600" },
   { label: "Sales", icon: ShoppingCart, path: "/sales", color: "from-amber-400 to-yellow-500" },
+  { label: "Sales Report", icon: BarChart3, path: "/sales-report", color: "from-amber-500 to-orange-500" },
   { label: "Purchases", icon: Receipt, path: "/purchases", color: "from-fuchsia-400 to-pink-500" },
   { label: "Expenses", icon: Wallet, path: "/expenses", color: "from-rose-400 to-red-500" },
   { label: "Ledger", icon: BookOpen, path: "/ledger", color: "from-indigo-400 to-violet-500" },
