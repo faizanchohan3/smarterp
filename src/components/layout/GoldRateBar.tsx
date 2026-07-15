@@ -57,6 +57,7 @@ const GoldRateBar = () => {
           <div className="flex items-center gap-3 font-semibold whitespace-nowrap">
             <span className="bg-white/30 px-2 py-0.5 rounded">24K: {formatCurrency(rate.tola_24k)}/tola</span>
             <span className="bg-white/30 px-2 py-0.5 rounded">22K: {formatCurrency(rate.tola_22k)}/tola</span>
+            <span className="bg-white/30 px-2 py-0.5 rounded hidden sm:inline">21K: {formatCurrency(rate.tola_21k)}/tola</span>
             <span className="bg-white/30 px-2 py-0.5 rounded hidden md:inline">18K: {formatCurrency(rate.tola_18k)}/tola</span>
             <span className="bg-white/30 px-2 py-0.5 rounded hidden lg:inline">Silver: {formatCurrency(rate.silver_tola)}/tola</span>
             <span className="text-amber-900/70 hidden sm:inline">({new Date(rate.rate_date).toLocaleDateString()})</span>

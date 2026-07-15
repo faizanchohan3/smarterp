@@ -27,6 +27,7 @@ const GoldRates = () => {
     rate_type: "morning",
     tola_24k: "",
     tola_22k: "",
+    tola_21k: "",
     tola_18k: "",
     silver_tola: "",
     notes: "",
@@ -44,6 +45,7 @@ const GoldRates = () => {
       gram_rate: tola24kRate / 11.664,
       tola_24k: tola24kRate,
       tola_22k: parseFloat(form.tola_22k) || 0,
+      tola_21k: parseFloat(form.tola_21k) || 0,
       tola_18k: parseFloat(form.tola_18k) || 0,
       silver_tola: parseFloat(form.silver_tola) || 0,
       notes: form.notes || null,
@@ -51,7 +53,7 @@ const GoldRates = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Gold rate saved" });
     setOpen(false);
-    setForm({ rate_date: new Date().toISOString().slice(0, 10), rate_time: new Date().toTimeString().slice(0, 5), rate_type: "morning", tola_24k: "", tola_22k: "", tola_18k: "", silver_tola: "", notes: "" });
+    setForm({ rate_date: new Date().toISOString().slice(0, 10), rate_time: new Date().toTimeString().slice(0, 5), rate_type: "morning", tola_24k: "", tola_22k: "", tola_21k: "", tola_18k: "", silver_tola: "", notes: "" });
     fetch();
     window.dispatchEvent(new Event("gold-rate-updated"));
   };
@@ -65,6 +67,7 @@ const GoldRates = () => {
     { key: "rate_type", label: "Type", render: (v: string) => v?.charAt(0).toUpperCase() + v?.slice(1) },
     { key: "tola_24k", label: "24K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_22k", label: "22K / Tola", render: (v: number) => formatCurrency(v) },
+    { key: "tola_21k", label: "21K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_18k", label: "18K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "silver_tola", label: "Silver / Tola", render: (v: number) => formatCurrency(v) },
     { key: "notes", label: "Notes", render: (v: string) => v || "-" },
@@ -117,10 +120,12 @@ const GoldRates = () => {
                         ...form,
                         tola_24k: v,
                         tola_22k: n > 0 ? String(tolaRateForKarat(n, 22)) : form.tola_22k,
+                        tola_21k: n > 0 ? String(tolaRateForKarat(n, 21)) : form.tola_21k,
                         tola_18k: n > 0 ? String(tolaRateForKarat(n, 18)) : form.tola_18k,
                       });
                     }} /></div>
                     <div><label className="text-xs">22K / Tola</label><Input type="number" value={form.tola_22k} onChange={e => setForm({ ...form, tola_22k: e.target.value })} /></div>
+                    <div><label className="text-xs">21K / Tola</label><Input type="number" value={form.tola_21k} onChange={e => setForm({ ...form, tola_21k: e.target.value })} /></div>
                     <div><label className="text-xs">18K / Tola</label><Input type="number" value={form.tola_18k} onChange={e => setForm({ ...form, tola_18k: e.target.value })} /></div>
                     <div className="col-span-2"><label className="text-xs">Silver / Tola</label><Input type="number" value={form.silver_tola} onChange={e => setForm({ ...form, silver_tola: e.target.value })} /></div>
                   </div>

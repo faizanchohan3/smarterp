@@ -323,6 +323,7 @@ CREATE TABLE public.gold_rates (
   gram_rate NUMERIC(12,2),
   silver_tola NUMERIC(12,2),
   tola_18k NUMERIC(12,2),
+  tola_21k NUMERIC(12,2),
   tola_22k NUMERIC(12,2),
   tola_24k NUMERIC(12,2),
   rate_type TEXT,
