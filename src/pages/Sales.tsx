@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
 import BarcodeScanner from "@/components/shared/BarcodeScanner";
+import ProductCombobox from "@/components/shared/ProductCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -424,12 +425,12 @@ const Sales = () => {
                         <div className="flex gap-2 items-end">
                           <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpenForRow(i)} title="Scan barcode or QR code"><Scan className="w-4 h-4" /></Button>
                           <div className="flex-1">
-                            <Select value={item.product_id} onValueChange={v => updateItem(i, "product_id", v)}>
-                              <SelectTrigger><SelectValue placeholder="Product" /></SelectTrigger>
-                              <SelectContent>
-                                {products.filter((p: any) => p.business_id === businessId).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({p.weight_value || 0}g)</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                            <ProductCombobox
+                              products={products.filter((p: any) => p.business_id === businessId)}
+                              value={item.product_id}
+                              onSelect={(v) => updateItem(i, "product_id", v)}
+                              placeholder="Search product..."
+                            />
                           </div>
                           <Input className="w-16" type="number" placeholder="Qty" value={item.quantity} onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 0)} />
                           <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}><Trash2 className="w-4 h-4 text-destructive" /></Button>

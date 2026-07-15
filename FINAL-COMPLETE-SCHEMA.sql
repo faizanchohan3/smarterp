@@ -207,6 +207,7 @@ CREATE TABLE public.sales (
   notes_internal TEXT,
   discount_amount NUMERIC(12,2),
   discount NUMERIC(12,2),
+  payment_status TEXT DEFAULT 'unpaid',
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'returned', 'cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -248,6 +249,7 @@ CREATE TABLE public.purchases (
   paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   notes TEXT,
   notes_internal TEXT,
+  payment_status TEXT DEFAULT 'unpaid',
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'received', 'returned', 'cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
