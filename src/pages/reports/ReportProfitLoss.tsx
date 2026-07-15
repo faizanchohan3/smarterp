@@ -33,6 +33,8 @@ const ReportProfitLoss = () => {
   const { data: products } = useBusinessData("products");
   const { data: customers } = useBusinessData("customers");
   const { data: suppliers } = useBusinessData("suppliers");
+  const { data: jobCards } = useBusinessData("job_cards");
+  const { data: customOrders } = useBusinessData("custom_orders");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -57,7 +59,26 @@ const ReportProfitLoss = () => {
     try { return s + (JSON.parse(e.description || "{}").profit || 0); } catch { return s; }
   }, 0);
 
-  const totalRevenue = totalSales + totalResalesRevenue;
+  // ── Repair / Service income ───────────────────────────────────────────────────
+  // Returned jobs: full service charge is earned. Open jobs: only the advance received so far.
+  const filteredJobs = filterByDate(jobCards);
+  const repairIncome = filteredJobs.reduce((s: number, j: any) => {
+    if (j.status === "cancelled") return s;
+    if (j.status === "returned") return s + Number(j.service_charge || 0);
+    return s + Number(j.advance_amount || 0);
+  }, 0);
+  const returnedJobsCount = filteredJobs.filter((j: any) => j.status === "returned").length;
+
+  // ── Custom order income ───────────────────────────────────────────────────────
+  // Delivered orders: full price. Open orders: advance + payments received so far.
+  const filteredOrders = filterByDate(customOrders);
+  const customOrderIncome = filteredOrders.reduce((s: number, o: any) => {
+    if (o.status === "cancelled") return s;
+    if (o.status === "delivered") return s + Number(o.total_price || 0);
+    return s + Number(o.advance_amount || 0) + Number(o.paid_amount || 0);
+  }, 0);
+
+  const totalRevenue = totalSales + totalResalesRevenue + repairIncome + customOrderIncome;
 
   // ── Costs ─────────────────────────────────────────────────────────────────────
   const totalPurchases     = filteredPurchases.reduce((s: number, p: any) => s + Number(p.total_amount), 0);
@@ -154,6 +175,22 @@ const ReportProfitLoss = () => {
                   label={`Purchase Resales (${resaleExpenses.length})`}
                   amount={totalResalesRevenue}
                   sub={`Profit on resales: ${formatCurrency(totalResalesProfit)}`}
+                  indent
+                />
+              )}
+              {repairIncome > 0 && (
+                <Row
+                  label={`Repair / Service Income (${filteredJobs.length} jobs)`}
+                  amount={repairIncome}
+                  sub={`${returnedJobsCount} returned (full charge) · open jobs counted by advance`}
+                  indent
+                />
+              )}
+              {customOrderIncome > 0 && (
+                <Row
+                  label={`Custom Order Income (${filteredOrders.length} orders)`}
+                  amount={customOrderIncome}
+                  sub="Delivered: full price · open orders: advance + payments"
                   indent
                 />
               )}
