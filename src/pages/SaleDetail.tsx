@@ -383,39 +383,6 @@ const SaleDetail = () => {
         <div className="hidden print:block bg-white text-black"
           style={{ fontFamily: "'Times New Roman', serif", padding: "28px 36px", maxWidth: "720px", margin: "0 auto" }}>
 
-          {/* ── Header ── */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px", borderBottom: "3px double #7a1a1a", paddingBottom: "14px" }}>
-            {/* Left: logo + shop name + owner */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-              {shopLogo && (
-                <img src={shopLogo} alt="logo" style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "6px" }} />
-              )}
-              <div>
-                <div style={{ fontSize: "22px", fontWeight: "900", color: "#7a1a1a", lineHeight: 1.1, textTransform: "uppercase", letterSpacing: "1px" }}>
-                  {shopName || ownerName || "Jewellers"}
-                </div>
-                {ownerName && shopName && (
-                  <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>Chief Executive</div>
-                )}
-                {ownerName && (
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#7a1a1a" }}>{ownerName}</div>
-                )}
-                {shopPhone && (
-                  <div style={{ fontSize: "12px", color: "#333", marginTop: "2px" }}>Cell: {shopPhone}</div>
-                )}
-              </div>
-            </div>
-            {/* Right: address block */}
-            <div style={{ textAlign: "right" }}>
-              {shopAddress && (
-                <div style={{ fontSize: "12px", color: "#333", marginBottom: "4px" }}>{shopAddress}</div>
-              )}
-              {shopPhone && (
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#7a1a1a" }}>{shopPhone}</div>
-              )}
-            </div>
-          </div>
-
           {/* ── Date / Gold Rate / Report No row ── */}
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "14px" }}>
             <div>
@@ -578,37 +545,6 @@ const SaleDetail = () => {
             );
           })()}
 
-          {/* ── Signatures ── */}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "36px", fontSize: "12px" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ borderTop: "1px solid #333", width: "160px", marginBottom: "5px" }} />
-              <div>Prepared By</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ borderTop: "1px solid #333", width: "160px", marginBottom: "5px" }} />
-              <div>Authorized Signature</div>
-            </div>
-          </div>
-
-          {/* ── Footer ── */}
-          <div style={{
-            marginTop: "24px", background: "linear-gradient(135deg, #7a1a1a 60%, #b8860b 100%)",
-            color: "#fff", borderRadius: "0 0 8px 8px", padding: "12px 20px",
-            display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>📍</span>
-              <span>{shopAddress || ""}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>📞</span>
-              <span>{shopPhone || ""}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>💎</span>
-              <span>Trust is Our Identity</span>
-            </div>
-          </div>
         </div>
 
         <ReportFooter />
