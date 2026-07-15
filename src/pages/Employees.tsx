@@ -20,12 +20,12 @@ const Employees = () => {
   const [editing, setEditing] = useState<any>(null);
   const [selectedEmp, setSelectedEmp] = useState<any>(null);
   const [salaryMonth, setSalaryMonth] = useState("");
-  const [form, setForm] = useState({ name: "", phone: "", role: "", salary: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", position: "", salary: "" });
 
   const columns = [
-    { key: "name", label: "Name" },
+    { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
-    { key: "role", label: "Role" },
+    { key: "position", label: "Position" },
     { key: "salary", label: "Salary (PKR)", render: (v: number) => formatCurrency(v) },
   ];
 
@@ -33,7 +33,7 @@ const Employees = () => {
     e.preventDefault();
     const record = { ...form, salary: parseFloat(form.salary) || 0 };
     const ok = editing ? await update(editing.id, record) : await create(record);
-    if (ok) { setOpen(false); setEditing(null); setForm({ name: "", phone: "", role: "", salary: "" }); }
+    if (ok) { setOpen(false); setEditing(null); setForm({ full_name: "", phone: "", position: "", salary: "" }); }
   };
 
   const handlePaySalary = async () => {
@@ -51,7 +51,7 @@ const Employees = () => {
     await (supabase.from("expenses") as any).insert({
       business_id: businessId,
       category: "Salary",
-      description: `Salary for ${selectedEmp.name} - ${salaryMonth}`,
+      description: `Salary for ${selectedEmp.full_name} - ${salaryMonth}`,
       amount: selectedEmp.salary,
     });
 
@@ -61,7 +61,7 @@ const Employees = () => {
 
   const openEdit = (row: any) => {
     setEditing(row);
-    setForm({ name: row.name, phone: row.phone || "", role: row.role || "", salary: String(row.salary) });
+    setForm({ full_name: row.full_name, phone: row.phone || "", position: row.position || "", salary: String(row.salary) });
     setOpen(true);
   };
 
@@ -73,16 +73,16 @@ const Employees = () => {
           <div className="flex gap-2">
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => { setEditing(null); setForm({ name: "", phone: "", role: "", salary: "" }); setOpen(true); }} className="gap-2">
+                <Button onClick={() => { setEditing(null); setForm({ full_name: "", phone: "", position: "", salary: "" }); setOpen(true); }} className="gap-2">
                   <Plus className="w-4 h-4" /> Add Employee
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>{editing ? "Edit" : "Add"} Employee</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <Input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                  <Input placeholder="Full Name" value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} required />
                   <Input placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-                  <Input placeholder="Role" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} />
+                  <Input placeholder="Position" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
                   <Input placeholder="Salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} />
                   <Button type="submit" className="w-full">{editing ? "Update" : "Create"}</Button>
                 </form>
