@@ -26,10 +26,13 @@ const CustomOrders = () => {
   const { data, create, fetch: fetchOrders } = useBusinessData("custom_orders" as any);
   const { data: customers } = useBusinessData("customers");
   const { data: karigars } = useBusinessData("karigars" as any);
+  const { data: suppliers } = useBusinessData("suppliers");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     customer_id: "",
     karigar_id: "",
+    supplier_id: "",
+    supplier_cost: "",
     description: "",
     design_reference_url: "",
     estimated_weight: "",
@@ -42,7 +45,8 @@ const CustomOrders = () => {
   });
 
   const resetForm = () => setForm({
-    customer_id: "", karigar_id: "", description: "", design_reference_url: "",
+    customer_id: "", karigar_id: "", supplier_id: "", supplier_cost: "",
+    description: "", design_reference_url: "",
     estimated_weight: "", weight_unit: "gram", purity_karat: "", total_price: "",
     advance_amount: "", order_date: new Date().toISOString().split("T")[0],
     expected_delivery_date: "",
@@ -53,10 +57,14 @@ const CustomOrders = () => {
     const orderNumber = `CO-${Date.now().toString(36).toUpperCase()}`;
     const advanceAmt = parseFloat(form.advance_amount) || 0;
 
+    const supplierCost = parseFloat(form.supplier_cost) || 0;
+
     const ok = await create({
       order_number: orderNumber,
       customer_id: form.customer_id || null,
       karigar_id: form.karigar_id || null,
+      supplier_id: form.supplier_id || null,
+      supplier_cost: supplierCost,
       description: form.description,
       design_reference_url: form.design_reference_url || null,
       estimated_weight: form.estimated_weight ? parseFloat(form.estimated_weight) : null,
@@ -93,6 +101,19 @@ const CustomOrders = () => {
         reference_id: form.customer_id,
         description: `Custom Order Advance - ${orderNumber}`,
         credit: advanceAmt,
+        debit: 0,
+        balance: 0,
+      });
+    }
+
+    // Order assigned to a supplier: credit supplier ledger with the agreed cost (we owe them)
+    if (ok && supplierCost > 0 && form.supplier_id) {
+      await (supabase.from("ledger_entries") as any).insert({
+        business_id: businessId,
+        entry_type: "supplier",
+        reference_id: form.supplier_id,
+        description: `Custom Order Assigned - ${orderNumber}`,
+        credit: supplierCost,
         debit: 0,
         balance: 0,
       });
@@ -156,6 +177,21 @@ const CustomOrders = () => {
                     {karigars.map((k: any) => <SelectItem key={k.id} value={k.id}>{k.name} ({k.specialty})</SelectItem>)}
                   </SelectContent>
                 </Select>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={form.supplier_id} onValueChange={v => setForm({ ...form, supplier_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Assign Supplier (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number" step="0.01" placeholder="Supplier Cost (PKR)"
+                    value={form.supplier_cost}
+                    onChange={e => setForm({ ...form, supplier_cost: e.target.value })}
+                    disabled={!form.supplier_id}
+                  />
+                </div>
 
                 <Textarea placeholder="Order Description / Design Details" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required rows={3} />
 

@@ -494,6 +494,8 @@ CREATE TABLE public.custom_orders (
   order_number TEXT NOT NULL,
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   karigar_id UUID REFERENCES public.karigars(id) ON DELETE SET NULL,
+  supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
+  supplier_cost NUMERIC(12,2) DEFAULT 0,
   description TEXT NOT NULL,
   design_reference_url TEXT,
   estimated_weight NUMERIC(12,4),
