@@ -35,14 +35,16 @@ const GoldRates = () => {
 
   const handleSubmit = async () => {
     if (!businessId) return;
+    const tola24kRate = parseFloat(form.tola_24k) || 0;
     const { error } = await (supabase.from("gold_rates" as any) as any).insert({
       business_id: businessId,
       rate_date: form.rate_date,
       rate_time: form.rate_time || null,
       rate_type: form.rate_type,
-      tola_24k: parseFloat(form.tola_24k) || 0,
+      tola_rate: tola24kRate,
+      gram_rate: tola24kRate / 11.664,
+      tola_24k: tola24kRate,
       tola_22k: parseFloat(form.tola_22k) || 0,
-      tola_21k: parseFloat(form.tola_21k) || 0,
       tola_18k: parseFloat(form.tola_18k) || 0,
       silver_tola: parseFloat(form.silver_tola) || 0,
       notes: form.notes || null,
