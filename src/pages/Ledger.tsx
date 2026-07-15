@@ -13,8 +13,8 @@ const Ledger = () => {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState("");
 
-  const customerEntries = ledgerEntries.filter((e: any) => e.entry_type === "customer" && (!selectedCustomer || e.reference_id === selectedCustomer));
-  const supplierEntries = ledgerEntries.filter((e: any) => e.entry_type === "supplier" && (!selectedSupplier || e.reference_id === selectedSupplier));
+  const customerEntries = ledgerEntries.filter((e: any) => e.entry_type === "customer" && (!selectedCustomer || selectedCustomer === "all" || e.reference_id === selectedCustomer));
+  const supplierEntries = ledgerEntries.filter((e: any) => e.entry_type === "supplier" && (!selectedSupplier || selectedSupplier === "all" || e.reference_id === selectedSupplier));
 
   const calcRunningBalance = (entries: any[]) => {
     let balance = 0;

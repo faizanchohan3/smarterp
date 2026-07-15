@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Receipt, Wallet, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, BellRing } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/currency";
+import { formatRateTime } from "@/lib/gold";
 import { toast } from "sonner";
 
 const Dashboard = () => {
@@ -23,7 +24,10 @@ const Dashboard = () => {
     const fetchRate = async () => {
       const { data } = await (supabase.from("gold_rates" as any) as any)
         .select("*").eq("business_id", businessId)
-        .order("rate_date", { ascending: false }).limit(1);
+        .order("rate_date", { ascending: false })
+        .order("rate_time", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(1);
       if (data && data.length) setLatestRate(data[0]);
     };
     fetchRate();
@@ -117,7 +121,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  Latest Gold Rate ({new Date(latestRate.rate_date).toLocaleDateString()})
+                  Latest Gold Rate ({new Date(latestRate.rate_date).toLocaleDateString()}{latestRate.rate_time ? ` ${formatRateTime(latestRate.rate_time)}` : ""}{latestRate.rate_type ? ` — ${latestRate.rate_type}` : ""})
                 </div>
                 <button onClick={() => navigate("/gold-rates")} className="text-xs underline text-amber-700 dark:text-amber-400">Manage</button>
               </div>
