@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartERP - Supabase Migrations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .migration-item {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .migration-name {
+            font-weight: 500;
+            color: #333;
+        }
+        .migration-desc {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+        .status {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.running { background: #d1ecf1; color: #0c5460; animation: spin 1s linear infinite; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .log-section {
+            background: #1e1e1e;
+            color: #0f0;
+            padding: 16px;
+            border-radius: 6px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            display: none;
+        }
+        .log-section.active { display: block; }
+        .log-entry { margin-bottom: 4px; }
+        .log-success { color: #0f0; }
+        .log-error { color: #f00; }
+        .log-info { color: #0af; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SmartERP Database Setup</h1>
+        <p class="subtitle">Apply required migrations to your Supabase database</p>
+
+        <div id="migrations"></div>
+
+        <div class="button-group">
+            <button class="btn-secondary" onclick="copyToClipboard()">📋 Copy SQL</button>
+            <button class="btn-primary" onclick="openSQLEditor()">✨ Open SQL Editor</button>
+        </div>
+
+        <div id="logs" class="log-section">
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const migrations = [
+            {
+                name: 'Chart of Accounts',
+                description: 'Accounting chart structure',
+                file: 'chart_of_accounts'
+            },
+            {
+                name: 'Karigars & Job Cards',
+                description: 'Craftsmen and repair job management',
+                file: 'karigar_job_cards'
+            },
+            {
+                name: 'Job Cards Service Fields',
+                description: 'Additional repair service fields',
+                file: 'job_cards_service'
+            },
+            {
+                name: 'Custom Orders',
+                description: 'Custom jewelry order management',
+                file: 'custom_orders'
+            }
+        ];
+
+        const sqlContent = `
+-- Migration 1: Chart of Accounts
+CREATE TABLE IF NOT EXISTS public.chart_of_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE NOT NULL,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('asset', 'liability', 'equity', 'revenue', 'expense')),
+  parent_id UUID REFERENCES public.chart_of_accounts(id) ON DELETE SET NULL,
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (business_id, code)
+);
+ALTER TABLE public.chart_of_accounts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own business accounts" ON public.chart_of_accounts FOR SELECT USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+CREATE POLICY "Users can insert own business accounts" ON public.chart_of_accounts FOR INSERT WITH CHECK (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+CREATE POLICY "Users can update own business accounts" ON public.chart_of_accounts FOR UPDATE USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+CREATE POLICY "Users can delete own business accounts" ON public.chart_of_accounts FOR DELETE USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+
+-- Migration 2: Karigars & Job Cards
+CREATE TABLE IF NOT EXISTS public.karigars (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  specialty TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.karigars ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Business members manage karigars" ON public.karigars FOR ALL USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+
+CREATE TABLE IF NOT EXISTS public.job_cards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  job_number TEXT NOT NULL,
+  karigar_id UUID REFERENCES karigars(id),
+  customer_id UUID REFERENCES customers(id),
+  description TEXT NOT NULL,
+  gold_given NUMERIC NOT NULL DEFAULT 0,
+  gold_given_unit TEXT NOT NULL DEFAULT 'gram',
+  gold_returned NUMERIC DEFAULT 0,
+  gold_returned_unit TEXT DEFAULT 'gram',
+  making_charges NUMERIC DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  given_date DATE,
+  expected_date DATE,
+  returned_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.job_cards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Business members manage job_cards" ON public.job_cards FOR ALL USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+
+-- Migration 3: Job Cards Service Fields
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS service_type TEXT NOT NULL DEFAULT 'repair';
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS service_charge NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS advance_amount NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS item_photo_url TEXT;
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS customer_phone_snapshot TEXT;
+
+-- Migration 4: Custom Orders
+CREATE TABLE IF NOT EXISTS public.custom_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  order_number TEXT NOT NULL,
+  customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
+  karigar_id UUID REFERENCES public.karigars(id) ON DELETE SET NULL,
+  description TEXT NOT NULL,
+  design_reference_url TEXT,
+  estimated_weight NUMERIC(12,4),
+  weight_unit TEXT NOT NULL DEFAULT 'gram' CHECK (weight_unit IN ('gram', 'milligram')),
+  purity_karat INTEGER,
+  total_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+  advance_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_production', 'ready', 'delivered', 'cancelled')),
+  order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  expected_delivery_date DATE,
+  delivered_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.custom_orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Business members manage custom_orders" ON public.custom_orders FOR ALL USING (business_id IN (SELECT business_id FROM public.user_roles WHERE user_id = auth.uid()));
+CREATE TRIGGER update_custom_orders_updated_at BEFORE UPDATE ON public.custom_orders FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS custom_order_id UUID REFERENCES public.custom_orders(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_payments_custom_order_id ON public.payments(custom_order_id);
+`;
+
+        function renderMigrations() {
+            const container = document.getElementById('migrations');
+            container.innerHTML = migrations.map((m, i) => `
+                <div class="migration-item">
+                    <div>
+                        <div class="migration-name">${i + 1}. ${m.name}</div>
+                        <div class="migration-desc">${m.description}</div>
+                    </div>
+                    <div class="status pending">⏳</div>
+                </div>
+            `).join('');
+        }
+
+        function copyToClipboard() {
+            navigator.clipboard.writeText(sqlContent).then(() => {
+                addLog('✅ SQL copied to clipboard!', 'success');
+            });
+        }
+
+        function openSQLEditor() {
+            const url = 'https://app.supabase.com/project/zkbdfljvzckeaqjexgop/sql/new';
+            window.open(url, '_blank');
+            addLog('📖 Opening Supabase SQL Editor...', 'info');
+            addLog('📝 Paste the SQL code from the "Copy SQL" button', 'info');
+            showLogs();
+        }
+
+        function addLog(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = message;
+            logContent.appendChild(entry);
+            logContent.parentElement.scrollTop = logContent.parentElement.scrollHeight;
+        }
+
+        function showLogs() {
+            document.getElementById('logs').classList.add('active');
+        }
+
+        // Initialize
+        renderMigrations();
+        addLog('🎯 Ready to migrate your Supabase database', 'info');
+        addLog('✓ Choose: Copy SQL → Paste in SQL Editor, OR Click "Open SQL Editor"', 'info');
+    </script>
+</body>
+</html>
