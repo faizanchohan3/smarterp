@@ -51,6 +51,7 @@ const Sales = () => {
   const { data: sales, fetch: fetchSales } = useBusinessData("sales");
   const { data: customers } = useBusinessData("customers");
   const { data: products } = useBusinessData("products");
+  const { data: suppliers } = useBusinessData("suppliers");
   const { data: goldRates } = useBusinessData("gold_rates" as any);
   const latestRate: any = [...goldRates].sort((a: any, b: any) => (a.rate_date < b.rate_date ? 1 : -1))[0];
   const [karat, setKarat] = useState<string>("22k");
@@ -492,7 +493,11 @@ const Sales = () => {
                                 <Select value={item.supplier_id || ""} onValueChange={v => updateItem(i, "supplier_id", v)}>
                                   <SelectTrigger className="h-8"><SelectValue placeholder="Select Supplier" /></SelectTrigger>
                                   <SelectContent>
-                                    {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    {suppliers.length === 0 ? (
+                                      <SelectItem value="" disabled>No suppliers found</SelectItem>
+                                    ) : (
+                                      suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                                    )}
                                   </SelectContent>
                                 </Select>
                                 <Input
