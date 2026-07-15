@@ -139,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       phone,
       logo_url: logoUrl || null,
       address: address || null,
+      status: "pending",
     }).select().single();
     if (bizErr) throw bizErr;
 
