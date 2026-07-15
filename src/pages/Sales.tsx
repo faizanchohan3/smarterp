@@ -34,6 +34,9 @@ interface SaleItem {
   purity_karat?: number | null;
   gross_weight?: number;
   net_weight?: number;
+  in_stock?: boolean; // true = have in inventory, false = drop-ship from supplier
+  supplier_id?: string; // supplier to buy from if not in stock
+  cost_price?: number; // cost from supplier for drop-ship items
 }
 
 const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): number => {
@@ -78,7 +81,7 @@ const Sales = () => {
   const [repaymentDate, setRepaymentDate] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0 }]);
 
   const goldPerUnitCalc = (weightStr: string | number, weightUnit: string, rate: number) => {
     const weight = parseFloat(String(weightStr)) || 0;
@@ -209,8 +212,61 @@ const Sales = () => {
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
 
+    // Handle drop-ship items (not in stock)
+    const dropShipItems = items.filter(item => !item.in_stock && item.supplier_id && item.cost_price);
+    for (const dropShipItem of dropShipItems) {
+      const costTotal = (dropShipItem.cost_price || 0) * (parseFloat(String(dropShipItem.quantity)) || 1);
+
+      // Create purchase record from supplier
+      const { data: purchase, error: purchaseErr } = await (supabase.from("purchases") as any).insert({
+        business_id: businessId,
+        supplier_id: dropShipItem.supplier_id,
+        invoice_number: `PUR-${Date.now().toString(36).toUpperCase()}`,
+        total_amount: costTotal,
+        discount: 0,
+        final_amount: costTotal,
+        paid_amount: 0,
+        payment_status: "unpaid",
+      }).select().single();
+
+      if (!purchaseErr && purchase) {
+        // Create purchase item
+        await (supabase.from("purchase_items") as any).insert({
+          purchase_id: purchase.id,
+          product_id: dropShipItem.product_id || null,
+          product_name: dropShipItem.product_name,
+          quantity: parseFloat(String(dropShipItem.quantity)) || 0,
+          unit_price: dropShipItem.cost_price,
+          total: costTotal,
+        });
+
+        // Create ledger entry for supplier (they receive payment)
+        await (supabase.from("ledger_entries") as any).insert({
+          business_id: businessId,
+          entry_type: "supplier",
+          reference_id: dropShipItem.supplier_id,
+          description: `Sale to your shop - ${invoiceNumber}`,
+          debit: 0,
+          credit: costTotal,
+          balance: 0,
+        });
+
+        // Create ledger entry for your shop (purchase expense)
+        await (supabase.from("ledger_entries") as any).insert({
+          business_id: businessId,
+          entry_type: "supplier",
+          reference_id: dropShipItem.supplier_id,
+          description: `Purchase for resale - ${invoiceNumber}`,
+          debit: costTotal,
+          credit: 0,
+          balance: 0,
+        });
+      }
+    }
+
+    // Handle regular items (in stock)
     for (const item of items) {
-      if (item.product_id) {
+      if (item.product_id && item.in_stock) {
         const prod = products.find((p: any) => p.id === item.product_id);
         if (prod) {
           await (supabase.from("products") as any).update({
@@ -220,6 +276,7 @@ const Sales = () => {
       }
     }
 
+    // Customer ledger entry
     if (actualCustomerId) {
       await (supabase.from("ledger_entries") as any).insert({
         business_id: businessId, entry_type: "customer", reference_id: actualCustomerId,
@@ -412,6 +469,48 @@ const Sales = () => {
                             )}
                           </div>
                         </div>
+
+                        {/* Drop-Ship Toggle */}
+                        <div className="border-t pt-2 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={`in-stock-${i}`}
+                              checked={item.in_stock !== false}
+                              onChange={e => updateItem(i, "in_stock", e.target.checked)}
+                              className="rounded"
+                            />
+                            <label htmlFor={`in-stock-${i}`} className="text-xs text-muted-foreground cursor-pointer">
+                              Have this item in stock?
+                            </label>
+                          </div>
+
+                          {item.in_stock === false && (
+                            <div className="space-y-2 bg-amber-50/50 p-2 rounded border border-amber-200">
+                              <p className="text-xs font-semibold text-amber-900">Drop-Ship: Will buy from supplier</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Select value={item.supplier_id || ""} onValueChange={v => updateItem(i, "supplier_id", v)}>
+                                  <SelectTrigger className="h-8"><SelectValue placeholder="Select Supplier" /></SelectTrigger>
+                                  <SelectContent>
+                                    {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Cost Price (PKR)"
+                                  className="h-8"
+                                  value={item.cost_price || ""}
+                                  onChange={e => updateItem(i, "cost_price", parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                              <p className="text-xs text-amber-800">
+                                💰 Profit: {formatCurrency((item.total || 0) - ((item.cost_price || 0) * (item.quantity || 1)))}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex justify-end text-sm">
                           <span className="font-semibold text-primary">Item Total: {formatCurrency(item.total)}</span>
                         </div>
