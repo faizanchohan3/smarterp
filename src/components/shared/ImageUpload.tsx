@@ -19,22 +19,43 @@ const ImageUpload = ({ currentUrl, onUpload, folder = "images", size = "md" }: I
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Map folder names to actual bucket names
+  const getBucket = (folderName: string): string => {
+    const map: Record<string, string> = {
+      products: "product-images",
+      "product-images": "product-images",
+      logos: "shop-logos",
+      "shop-logos": "shop-logos",
+      customers: "customer-photos",
+      "customer-photos": "customer-photos",
+      suppliers: "supplier-photos",
+      "supplier-photos": "supplier-photos",
+      "job-cards": "job-card-photos",
+      job_cards: "job-card-photos",
+      "job-card-photos": "job-card-photos",
+      "design-reference": "design-reference",
+      custom_orders: "design-reference",
+    };
+    return map[folderName] || "product-images";
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
+    const bucket = getBucket(folder);
     const ext = file.name.split(".").pop();
-    const path = `${folder}/${Date.now()}.${ext}`;
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    const { error } = await supabase.storage.from("uploads").upload(path, file);
+    const { error } = await supabase.storage.from(bucket).upload(path, file);
     if (error) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setUploading(false);
       return;
     }
 
-    const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     onUpload(data.publicUrl);
     setUploading(false);
   };
