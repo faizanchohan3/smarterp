@@ -27,7 +27,6 @@ const GoldRates = () => {
     rate_type: "morning",
     tola_24k: "",
     tola_22k: "",
-    tola_21k: "",
     tola_18k: "",
     silver_tola: "",
     notes: "",
@@ -52,7 +51,7 @@ const GoldRates = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Gold rate saved" });
     setOpen(false);
-    setForm({ rate_date: new Date().toISOString().slice(0, 10), rate_time: new Date().toTimeString().slice(0, 5), rate_type: "morning", tola_24k: "", tola_22k: "", tola_21k: "", tola_18k: "", silver_tola: "", notes: "" });
+    setForm({ rate_date: new Date().toISOString().slice(0, 10), rate_time: new Date().toTimeString().slice(0, 5), rate_type: "morning", tola_24k: "", tola_22k: "", tola_18k: "", silver_tola: "", notes: "" });
     fetch();
     window.dispatchEvent(new Event("gold-rate-updated"));
   };
@@ -66,7 +65,6 @@ const GoldRates = () => {
     { key: "rate_type", label: "Type", render: (v: string) => v?.charAt(0).toUpperCase() + v?.slice(1) },
     { key: "tola_24k", label: "24K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_22k", label: "22K / Tola", render: (v: number) => formatCurrency(v) },
-    { key: "tola_21k", label: "21K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "tola_18k", label: "18K / Tola", render: (v: number) => formatCurrency(v) },
     { key: "silver_tola", label: "Silver / Tola", render: (v: number) => formatCurrency(v) },
     { key: "notes", label: "Notes", render: (v: string) => v || "-" },
