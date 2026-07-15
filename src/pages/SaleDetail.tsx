@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState, useRef } from "react";
 import AppLayout from "@/components/layout/AppLayout";
+import ReportHeader from "@/components/shared/ReportHeader";
+import ReportFooter from "@/components/shared/ReportFooter";
 import StatusBadge from "@/components/shared/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,6 +166,8 @@ const SaleDetail = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
+        <ReportHeader title={`Invoice ${sale.invoice_number}`} subtitle={`Sales Invoice - ${new Date(sale.created_at).toLocaleDateString()}`} />
+
         <div className="flex items-center justify-between print:hidden">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate("/sales")}>
@@ -606,6 +610,8 @@ const SaleDetail = () => {
             </div>
           </div>
         </div>
+
+        <ReportFooter />
       </div>
     </AppLayout>
   );
