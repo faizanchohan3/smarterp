@@ -372,6 +372,8 @@ CREATE TABLE public.ledger_entries (
   reference_id UUID,
   debit NUMERIC(12,2) DEFAULT 0,
   credit NUMERIC(12,2) DEFAULT 0,
+  gold_debit NUMERIC(12,4) DEFAULT 0,
+  gold_credit NUMERIC(12,4) DEFAULT 0,
   balance NUMERIC(12,2) DEFAULT 0,
   description TEXT,
   notes TEXT,

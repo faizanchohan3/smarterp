@@ -26,6 +26,7 @@ const Payments = () => {
   const [type, setType] = useState<"customer_payment" | "supplier_payment" | "karigar_payment" | "employee_payment">("customer_payment");
   const [referenceId, setReferenceId] = useState("");
   const [amount, setAmount] = useState("");
+  const [goldWeight, setGoldWeight] = useState("");
   const [description, setDescription] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [receivedBy, setReceivedBy] = useState<string>("");
@@ -34,32 +35,43 @@ const Payments = () => {
     e.preventDefault();
     if (!businessId) return;
 
+    const moneyAmt = parseFloat(amount) || 0;
+    const goldAmt = parseFloat(goldWeight) || 0;
+    if (moneyAmt <= 0 && goldAmt <= 0) {
+      toast({ title: "Enter amount or gold weight", variant: "destructive" });
+      return;
+    }
+
     const { error } = await (supabase.from("payments") as any).insert({
       business_id: businessId,
       type,
       reference_id: referenceId,
-      amount: parseFloat(amount) || 0,
-      description,
-      payment_method: paymentMethod,
+      amount: moneyAmt,
+      description: goldAmt > 0 ? `${description || ""} [Gold: ${goldAmt}g]`.trim() : description,
+      payment_method: goldAmt > 0 && moneyAmt <= 0 ? "gold" : paymentMethod,
       received_by: receivedBy || null,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
     // customer payment = money in (credit their ledger); all others = money out (debit their ledger)
     const entryType = type.replace("_payment", "");
+    const isIncoming = type === "customer_payment";
     await (supabase.from("ledger_entries") as any).insert({
       business_id: businessId,
       entry_type: entryType,
       reference_id: referenceId,
-      description: description || (type === "customer_payment" ? "Payment received" : "Payment made"),
-      debit: type === "customer_payment" ? 0 : parseFloat(amount),
-      credit: type === "customer_payment" ? parseFloat(amount) : 0,
+      description: `${description || (isIncoming ? "Payment received" : "Payment made")}${goldAmt > 0 ? ` (Gold: ${goldAmt}g)` : ""}`,
+      debit: isIncoming ? 0 : moneyAmt,
+      credit: isIncoming ? moneyAmt : 0,
+      gold_debit: isIncoming ? 0 : goldAmt,
+      gold_credit: isIncoming ? goldAmt : 0,
       balance: 0,
     });
 
     toast({ title: "Payment recorded" });
     setOpen(false);
     setAmount("");
+    setGoldWeight("");
     setDescription("");
     setReferenceId("");
     setReceivedBy("");
@@ -123,7 +135,11 @@ const Payments = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Input placeholder="Amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Amount (PKR)" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
+                  <Input placeholder="Gold Weight (g)" type="number" step="0.001" value={goldWeight} onChange={e => setGoldWeight(e.target.value)} />
+                </div>
+                <p className="text-xs text-muted-foreground -mt-2">Paisa, gold, ya dono — jo diya/liya wo bharo</p>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger><SelectValue placeholder="Payment Method" /></SelectTrigger>
                   <SelectContent>

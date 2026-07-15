@@ -44,9 +44,11 @@ const Ledger = () => {
 
   const calcRunningBalance = (entries: any[]) => {
     let balance = 0;
+    let goldBalance = 0;
     return [...entries].reverse().map((e: any) => {
       balance += Number(e.debit) - Number(e.credit);
-      return { ...e, running_balance: balance };
+      goldBalance += Number(e.gold_debit || 0) - Number(e.gold_credit || 0);
+      return { ...e, running_balance: balance, running_gold_balance: goldBalance };
     }).reverse();
   };
 
@@ -61,8 +63,15 @@ const Ledger = () => {
       { key: "description", label: "Description" },
       { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
       { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-      { key: "running_balance", label: "Balance", render: (v: number) => (
-        <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.abs(v))}</span>
+      { key: "gold_debit", label: "Gold Dr (g)", render: (v: number) => Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-" },
+      { key: "gold_credit", label: "Gold Cr (g)", render: (v: number) => Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-" },
+      { key: "running_balance", label: "Balance", render: (v: number, row: any) => (
+        <div>
+          <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.abs(v))}</span>
+          {Math.abs(Number(row.running_gold_balance || 0)) > 0.0001 && (
+            <div className="text-xs text-amber-600">{Math.abs(Number(row.running_gold_balance)).toFixed(3)}g gold</div>
+          )}
+        </div>
       )},
     ];
   };
@@ -72,6 +81,9 @@ const Ledger = () => {
   const totalDebit = activeEntries.reduce((s: number, e: any) => s + Number(e.debit || 0), 0);
   const totalCredit = activeEntries.reduce((s: number, e: any) => s + Number(e.credit || 0), 0);
   const netBalance = totalDebit - totalCredit;
+  const totalGoldDebit = activeEntries.reduce((s: number, e: any) => s + Number(e.gold_debit || 0), 0);
+  const totalGoldCredit = activeEntries.reduce((s: number, e: any) => s + Number(e.gold_credit || 0), 0);
+  const netGoldBalance = totalGoldDebit - totalGoldCredit;
 
   const selectedName = selected[activeTab] === "all"
     ? `All ${activeConfig.label}s`
@@ -107,6 +119,13 @@ const Ledger = () => {
             <span><strong>Total Credit:</strong> {formatCurrency(totalCredit)}</span>
             <span><strong>Net Balance:</strong> {formatCurrency(Math.abs(netBalance))} {netBalance >= 0 ? "(Receivable)" : "(Payable)"}</span>
           </div>
+          {(totalGoldDebit > 0 || totalGoldCredit > 0) && (
+            <div className="flex justify-between text-sm border rounded-lg p-3 mb-2">
+              <span><strong>Gold Debit:</strong> {totalGoldDebit.toFixed(3)}g</span>
+              <span><strong>Gold Credit:</strong> {totalGoldCredit.toFixed(3)}g</span>
+              <span><strong>Gold Balance:</strong> {Math.abs(netGoldBalance).toFixed(3)}g {netGoldBalance >= 0 ? "(Receivable)" : "(Payable)"}</span>
+            </div>
+          )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -138,9 +157,9 @@ const Ledger = () => {
 
         {/* On-screen totals */}
         <div className="grid grid-cols-3 gap-3 print:hidden">
-          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Total Debit</p><p className="font-bold">{formatCurrency(totalDebit)}</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Total Credit</p><p className="font-bold">{formatCurrency(totalCredit)}</p></CardContent></Card>
-          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Net Balance</p><p className={`font-bold ${netBalance >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(Math.abs(netBalance))}</p></CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Total Debit</p><p className="font-bold">{formatCurrency(totalDebit)}</p>{totalGoldDebit > 0 && <p className="text-xs text-amber-600">{totalGoldDebit.toFixed(3)}g gold</p>}</CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Total Credit</p><p className="font-bold">{formatCurrency(totalCredit)}</p>{totalGoldCredit > 0 && <p className="text-xs text-amber-600">{totalGoldCredit.toFixed(3)}g gold</p>}</CardContent></Card>
+          <Card><CardContent className="p-3 text-center"><p className="text-xs text-muted-foreground">Net Balance</p><p className={`font-bold ${netBalance >= 0 ? "text-success" : "text-destructive"}`}>{formatCurrency(Math.abs(netBalance))}</p>{Math.abs(netGoldBalance) > 0.0001 && <p className="text-xs text-amber-600">{Math.abs(netGoldBalance).toFixed(3)}g gold {netGoldBalance >= 0 ? "lena" : "dena"}</p>}</CardContent></Card>
         </div>
 
         <ReportFooter />

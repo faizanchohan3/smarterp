@@ -242,25 +242,20 @@ const Sales = () => {
           total: costTotal,
         });
 
-        // Create ledger entry for supplier (they receive payment)
+        // Credit supplier ledger: we owe them the cost (money) and the gold weight of the item
+        const itemWeightGrams = (dropShipItem.weight_unit === "ratti"
+          ? (parseFloat(String(dropShipItem.weight)) || 0) / RATTI_IN_GRAMS
+          : (parseFloat(String(dropShipItem.weight)) || 0)) * (parseFloat(String(dropShipItem.quantity)) || 1);
+
         await (supabase.from("ledger_entries") as any).insert({
           business_id: businessId,
           entry_type: "supplier",
           reference_id: dropShipItem.supplier_id,
-          description: `Sale to your shop - ${invoiceNumber}`,
+          description: `Drop-ship: ${dropShipItem.product_name} (${itemWeightGrams.toFixed(3)}g) - ${invoiceNumber}`,
           debit: 0,
           credit: costTotal,
-          balance: 0,
-        });
-
-        // Create ledger entry for your shop (purchase expense)
-        await (supabase.from("ledger_entries") as any).insert({
-          business_id: businessId,
-          entry_type: "supplier",
-          reference_id: dropShipItem.supplier_id,
-          description: `Purchase for resale - ${invoiceNumber}`,
-          debit: costTotal,
-          credit: 0,
+          gold_debit: 0,
+          gold_credit: itemWeightGrams,
           balance: 0,
         });
       }

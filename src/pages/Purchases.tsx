@@ -56,7 +56,7 @@ const Purchases = () => {
   // ─── Form helpers ────────────────────────────────────────────────────────────
 
   const addItem = () =>
-    setItems([...items, { product_id: "", product_name: "", quantity: 1, unit_price: 0, total: 0 }]);
+    setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", unit_price: 0, total: 0 }]);
 
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...items];
@@ -137,9 +137,11 @@ const Purchases = () => {
     }
 
     if (sourceType === "supplier" && supplierId) {
+      const totalWeightG = items.reduce((s: number, it: any) => s + (parseFloat(String(it.weight)) || 0) * (parseFloat(String(it.quantity)) || 1), 0);
       await (supabase.from("ledger_entries") as any).insert({
         business_id: businessId, entry_type: "supplier", reference_id: supplierId,
-        description: `Purchase ${invoiceNumber}`, debit: 0, credit: totalAmount, balance: 0,
+        description: `Purchase ${invoiceNumber}${totalWeightG > 0 ? ` (${totalWeightG.toFixed(3)}g)` : ""}`,
+        debit: 0, credit: totalAmount, gold_debit: 0, gold_credit: totalWeightG, balance: 0,
       });
       if (paid > 0) {
         await (supabase.from("ledger_entries") as any).insert({
@@ -439,6 +441,11 @@ const Purchases = () => {
                           <p className="text-xs text-muted-foreground mb-1">Qty</p>
                           <Input type="number" placeholder="1" value={item.quantity}
                             onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 0)} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground mb-1">Weight (g)</p>
+                          <Input type="number" step="0.001" placeholder="0" value={item.weight || ""}
+                            onChange={e => updateItem(i, "weight", parseFloat(e.target.value) || 0)} />
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground mb-1">Unit Price</p>
