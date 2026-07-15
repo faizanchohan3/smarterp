@@ -43,7 +43,7 @@ const Employees = () => {
       business_id: businessId,
       employee_id: selectedEmp.id,
       amount: selectedEmp.salary,
-      month: salaryMonth,
+      salary_month: salaryMonth,
     });
     if (salErr) { toast({ title: "Error", description: salErr.message, variant: "destructive" }); return; }
 
@@ -99,7 +99,7 @@ const Employees = () => {
               <Button size="sm" variant="outline" onClick={(e) => {
                 e.stopPropagation();
                 setSelectedEmp(row);
-                setSalaryMonth(new Date().toISOString().slice(0, 7));
+                setSalaryMonth(new Date().toISOString().slice(0, 10));
                 setSalaryOpen(true);
               }}>Pay</Button>
             ),
@@ -113,8 +113,8 @@ const Employees = () => {
           <DialogContent>
             <DialogHeader><DialogTitle>Pay Salary</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Pay <strong>{selectedEmp?.name}</strong> — ${Number(selectedEmp?.salary).toLocaleString()}</p>
-              <Input type="month" value={salaryMonth} onChange={e => setSalaryMonth(e.target.value)} />
+              <p className="text-sm text-muted-foreground">Pay <strong>{selectedEmp?.full_name}</strong> — PKR {Number(selectedEmp?.salary).toLocaleString()}</p>
+              <Input type="date" value={salaryMonth} onChange={e => setSalaryMonth(e.target.value)} placeholder="Select date" />
               <Button className="w-full" onClick={handlePaySalary}>Confirm Payment</Button>
             </div>
           </DialogContent>
