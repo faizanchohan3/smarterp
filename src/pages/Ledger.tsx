@@ -48,6 +48,7 @@ const Ledger = () => {
   const entriesFor = (type: string) => filterByDate(ledgerEntries.filter((e: any) =>
     e.entry_type === type && (selected[type] === "all" || e.reference_id === selected[type])));
 
+  // Oldest entry at top, newest at bottom (like a traditional ledger register)
   const calcRunningBalance = (entries: any[]) => {
     let balance = 0;
     let goldBalance = 0;
@@ -55,7 +56,21 @@ const Ledger = () => {
       balance += Number(e.debit) - Number(e.credit);
       goldBalance += Number(e.gold_debit || 0) - Number(e.gold_credit || 0);
       return { ...e, running_balance: balance, running_gold_balance: goldBalance };
-    }).reverse();
+    });
+  };
+
+  // Append a TOTAL row at the bottom: totals sit directly under their columns
+  const withTotalRow = (rows: any[]) => {
+    if (rows.length === 0) return rows;
+    const td = rows.reduce((s: number, e: any) => s + Number(e.debit || 0), 0);
+    const tc = rows.reduce((s: number, e: any) => s + Number(e.credit || 0), 0);
+    const tgd = rows.reduce((s: number, e: any) => s + Number(e.gold_debit || 0), 0);
+    const tgc = rows.reduce((s: number, e: any) => s + Number(e.gold_credit || 0), 0);
+    return [...rows, {
+      id: "__total__", __total: true, description: "TOTAL",
+      debit: td, credit: tc, gold_debit: tgd, gold_credit: tgc,
+      running_balance: td - tc, running_gold_balance: tgd - tgc,
+    }];
   };
 
   // Gold len-den only applies to suppliers and karigars
@@ -66,23 +81,41 @@ const Ledger = () => {
     const { list, label, nameKey } = partyLists[type];
     const goldTab = isGoldTab(type);
     return [
-      { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+      { key: "created_at", label: "Date", render: (v: string, row: any) =>
+        row.__total ? "" : new Date(v).toLocaleDateString() },
       ...(selected[type] === "all" ? [{
         key: "reference_id", label,
-        render: (_: string, row: any) => list.find((p: any) => p.id === row.reference_id)?.[nameKey] || "-",
+        render: (_: string, row: any) => row.__total ? "" : (list.find((p: any) => p.id === row.reference_id)?.[nameKey] || "-"),
       }] : []),
-      { key: "description", label: "Description" },
-      { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
-      { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
+      { key: "description", label: "Description", render: (v: string, row: any) =>
+        row.__total ? <span className="font-bold">TOTAL</span> : v },
+      { key: "debit", label: "Debit", render: (v: number, row: any) =>
+        row.__total
+          ? <span className="font-bold border-t-2 border-foreground pt-1 inline-block">{formatCurrency(v)}</span>
+          : (Number(v) > 0 ? formatCurrency(v) : "-") },
+      { key: "credit", label: "Credit", render: (v: number, row: any) =>
+        row.__total
+          ? <span className="font-bold border-t-2 border-foreground pt-1 inline-block">{formatCurrency(v)}</span>
+          : (Number(v) > 0 ? formatCurrency(v) : "-") },
       ...(goldTab ? [
-        { key: "gold_debit", label: "Gold Dr (g)", render: (v: number) => Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-" },
-        { key: "gold_credit", label: "Gold Cr (g)", render: (v: number) => Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-" },
+        { key: "gold_debit", label: "Gold Dr (g)", render: (v: number, row: any) =>
+          row.__total
+            ? <span className="font-bold border-t-2 border-foreground pt-1 inline-block">{Number(v).toFixed(3)}g</span>
+            : (Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-") },
+        { key: "gold_credit", label: "Gold Cr (g)", render: (v: number, row: any) =>
+          row.__total
+            ? <span className="font-bold border-t-2 border-foreground pt-1 inline-block">{Number(v).toFixed(3)}g</span>
+            : (Number(v) > 0 ? `${Number(v).toFixed(3)}g` : "-") },
       ] : []),
       { key: "running_balance", label: "Balance", render: (v: number, row: any) => (
-        <div>
-          <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.abs(v))}</span>
+        <div className={row.__total ? "font-bold border-t-2 border-foreground pt-1" : ""}>
+          <span className={v > 0 ? "text-destructive font-medium" : "text-success font-medium"}>
+            {formatCurrency(Math.abs(v))}{row.__total ? ` ${v >= 0 ? "(Lena)" : "(Dena)"}` : ""}
+          </span>
           {goldTab && Math.abs(Number(row.running_gold_balance || 0)) > 0.0001 && (
-            <div className="text-xs text-amber-600">{Math.abs(Number(row.running_gold_balance)).toFixed(3)}g gold</div>
+            <div className="text-xs text-amber-600">
+              {Math.abs(Number(row.running_gold_balance)).toFixed(3)}g gold{row.__total ? ` ${Number(row.running_gold_balance) >= 0 ? "(Lena)" : "(Dena)"}` : ""}
+            </div>
           )}
         </div>
       )},
@@ -183,7 +216,7 @@ const Ledger = () => {
               </Select>
               <Card>
                 <CardContent className="pt-4">
-                  <DataTable columns={columnsFor(type)} data={type === activeTab ? activeEntries : calcRunningBalance(entriesFor(type))} />
+                  <DataTable columns={columnsFor(type)} data={withTotalRow(type === activeTab ? activeEntries : calcRunningBalance(entriesFor(type)))} />
                 </CardContent>
               </Card>
             </TabsContent>
