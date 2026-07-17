@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,10 +14,73 @@ import { formatCurrency } from "@/lib/currency";
 
 const Employees = () => {
   const navigate = useNavigate();
-  const { data, create, update, remove, fetch: fetchEmployees } = useBusinessData("employees");
+  const { data, loading: empLoading, create, update, remove, fetch: fetchEmployees } = useBusinessData("employees");
   const { data: salaries, fetch: fetchSalaries } = useBusinessData("salaries");
+  const { data: ledgerEntries, loading: ledgerLoading, fetch: fetchLedger } = useBusinessData("ledger_entries");
   const { businessId } = useAuth();
   const { toast } = useToast();
+  const accrualRan = useRef(false);
+
+  // ── Monthly salary accrual ──────────────────────────────────────────────
+  // On the 1st of each month (first visit that month), credit each employee's
+  // ledger with their salary (amount owed) and post the total to the
+  // "Salaries Payable" liability account in chart of accounts.
+  useEffect(() => {
+    if (!businessId || empLoading || ledgerLoading || accrualRan.current) return;
+    if (data.length === 0) return;
+    accrualRan.current = true;
+
+    (async () => {
+      const monthKey = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+      let accruedTotal = 0;
+
+      for (const emp of data) {
+        const sal = Number(emp.salary) || 0;
+        if (sal <= 0) continue;
+        const already = ledgerEntries.some((e: any) =>
+          e.entry_type === "employee" && e.reference_id === emp.id && e.description === `Salary Due - ${monthKey}`);
+        if (!already) {
+          await (supabase.from("ledger_entries") as any).insert({
+            business_id: businessId,
+            entry_type: "employee",
+            reference_id: emp.id,
+            description: `Salary Due - ${monthKey}`,
+            debit: 0,
+            credit: sal,
+            balance: 0,
+          });
+          accruedTotal += sal;
+        }
+      }
+
+      // Post the accrued total to the Salaries Payable liability account
+      if (accruedTotal > 0) {
+        const { data: accts } = await (supabase.from("chart_of_accounts") as any)
+          .select("id").eq("business_id", businessId).eq("name", "Salaries Payable").limit(1);
+        let acctId = accts?.[0]?.id;
+        if (!acctId) {
+          const { data: newAcct } = await (supabase.from("chart_of_accounts") as any).insert({
+            business_id: businessId, code: "2100", name: "Salaries Payable",
+            type: "liability", description: "Monthly salaries owed to employees",
+          }).select().single();
+          acctId = newAcct?.id;
+        }
+        if (acctId) {
+          await (supabase.from("ledger_entries") as any).insert({
+            business_id: businessId,
+            entry_type: "account",
+            account_id: acctId,
+            reference_id: acctId,
+            description: `Salaries Payable - ${monthKey}`,
+            debit: 0,
+            credit: accruedTotal,
+            balance: 0,
+          });
+        }
+        fetchLedger();
+      }
+    })();
+  }, [businessId, empLoading, ledgerLoading, data, ledgerEntries]);
   const [open, setOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -89,9 +152,26 @@ const Employees = () => {
       payment_method: "cash",
     });
 
+    // Settle the Salaries Payable liability account (debit)
+    const { data: accts } = await (supabase.from("chart_of_accounts") as any)
+      .select("id").eq("business_id", businessId).eq("name", "Salaries Payable").limit(1);
+    if (accts?.[0]?.id) {
+      await (supabase.from("ledger_entries") as any).insert({
+        business_id: businessId,
+        entry_type: "account",
+        account_id: accts[0].id,
+        reference_id: accts[0].id,
+        description: `Salary Paid: ${selectedEmp.full_name} - ${salaryMonth}`,
+        debit: Number(selectedEmp.salary) || 0,
+        credit: 0,
+        balance: 0,
+      });
+    }
+
     toast({ title: "Salary paid — added to expenses, ledger & payments" });
     setSalaryOpen(false);
     fetchSalaries();
+    fetchLedger();
   };
 
   const openEdit = (row: any) => {

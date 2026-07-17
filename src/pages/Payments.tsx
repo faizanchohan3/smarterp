@@ -118,7 +118,7 @@ const Payments = () => {
             <DialogContent>
               <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <Select value={type} onValueChange={(v: any) => { setType(v); setReferenceId(""); }}>
+                <Select value={type} onValueChange={(v: any) => { setType(v); setReferenceId(""); setGoldWeight(""); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="customer_payment">Customer Payment (Incoming)</SelectItem>
@@ -135,11 +135,17 @@ const Payments = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="Amount (PKR)" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
-                  <Input placeholder="Gold Weight (g)" type="number" step="0.001" value={goldWeight} onChange={e => setGoldWeight(e.target.value)} />
-                </div>
-                <p className="text-xs text-muted-foreground -mt-2">Paisa, gold, ya dono — jo diya/liya wo bharo</p>
+                {(type === "supplier_payment" || type === "karigar_payment") ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input placeholder="Amount (PKR)" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
+                      <Input placeholder="Gold Weight (g)" type="number" step="0.001" value={goldWeight} onChange={e => setGoldWeight(e.target.value)} />
+                    </div>
+                    <p className="text-xs text-muted-foreground -mt-2">Paisa, gold, ya dono — jo diya wo bharo</p>
+                  </>
+                ) : (
+                  <Input placeholder="Amount (PKR)" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+                )}
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger><SelectValue placeholder="Payment Method" /></SelectTrigger>
                   <SelectContent>
