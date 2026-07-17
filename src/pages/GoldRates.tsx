@@ -21,6 +21,8 @@ const GoldRates = () => {
   const { data: rates, fetch, remove } = useBusinessData("gold_rates" as any);
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [form, setForm] = useState({
     rate_date: new Date().toISOString().slice(0, 10),
     rate_time: new Date().toTimeString().slice(0, 5),
@@ -58,8 +60,12 @@ const GoldRates = () => {
     window.dispatchEvent(new Event("gold-rate-updated"));
   };
 
-  const sorted = sortRatesLatestFirst(rates as any[]);
-  const latest: any = sorted[0];
+  const sorted = sortRatesLatestFirst(rates as any[]).filter((r: any) => {
+    if (dateFrom && r.rate_date < dateFrom) return false;
+    if (dateTo && r.rate_date > dateTo) return false;
+    return true;
+  });
+  const latest: any = sortRatesLatestFirst(rates as any[])[0];
 
   const columns = [
     { key: "rate_date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
@@ -82,7 +88,12 @@ const GoldRates = () => {
             <h1 className="text-2xl font-bold">Gold Rates</h1>
             <p className="text-sm text-muted-foreground">Daily gold & silver tola rates</p>
           </div>
-          <div className="flex gap-2 print:hidden">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center print:hidden">
+            <div className="flex gap-2 items-center bg-card border rounded-lg px-3 py-1.5">
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-auto h-8 text-sm border-0 p-0 focus-visible:ring-0" />
+              <span className="text-muted-foreground text-xs">→</span>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-auto h-8 text-sm border-0 p-0 focus-visible:ring-0" />
+            </div>
             <Button variant="outline" size="sm" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
             </Button>
