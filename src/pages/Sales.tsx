@@ -359,7 +359,7 @@ const Sales = () => {
             <p className="text-sm text-muted-foreground">Manage invoices & sales</p>
           </div>
           <div className="flex gap-2 print:hidden">
-            <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>

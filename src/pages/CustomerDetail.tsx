@@ -70,7 +70,7 @@ const CustomerDetail = () => {
             <Button variant="outline" className="gap-2" onClick={() => navigate(`/customers/${id}/edit`)}>
               <Pencil className="w-4 h-4" /> Edit
             </Button>
-            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+            <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print Ledger
             </Button>
           </div>

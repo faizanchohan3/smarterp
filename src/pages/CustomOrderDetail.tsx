@@ -141,7 +141,7 @@ const CustomOrderDetail = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))} className="gap-2 w-full">
               <Printer className="w-4 h-4" /> Print
             </Button>
           </div>

@@ -1,6 +1,6 @@
 const ReportFooter = () => {
   return (
-    <div className="mt-8 print:mt-6">
+    <div className="mt-8 print:mt-6 print-branding">
       {/* Separator Line */}
       <div className="h-1 bg-gradient-to-r from-red-700 via-red-600 to-red-700"></div>
 

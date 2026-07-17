@@ -31,7 +31,7 @@ const GoldRateReport = () => {
       <div className="space-y-4 animate-fade-in">
         <div className="flex justify-between items-center print:hidden mb-4">
           <h1 className="text-2xl font-bold">Gold Rate Report</h1>
-          <Button onClick={() => window.print()} className="gap-2">
+          <Button onClick={() => window.dispatchEvent(new Event("open-print-dialog"))} className="gap-2">
             <Printer className="w-4 h-4" /> Print Report
           </Button>
         </div>

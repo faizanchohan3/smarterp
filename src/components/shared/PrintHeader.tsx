@@ -10,7 +10,7 @@ const PrintHeader = ({ title, subtitle }: PrintHeaderProps) => {
   const { shopName, ownerName, shopLogo, shopAddress, shopPhone } = useAuth();
 
   return (
-    <div className="hidden print:block mb-4 print-receipt-header">
+    <div className="hidden print:block mb-4 print-receipt-header print-branding">
       <div
         className="rounded-xl overflow-hidden border-2"
         style={{

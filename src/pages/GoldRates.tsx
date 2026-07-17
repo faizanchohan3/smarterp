@@ -83,7 +83,7 @@ const GoldRates = () => {
             <p className="text-sm text-muted-foreground">Daily gold & silver tola rates</p>
           </div>
           <div className="flex gap-2 print:hidden">
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>

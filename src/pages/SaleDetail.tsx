@@ -248,7 +248,7 @@ const SaleDetail = () => {
                 </Button>
                 <Button
                   className="flex-1 gap-2"
-                  onClick={() => { setNoteDialogOpen(false); setTimeout(() => window.print(), 350); }}
+                  onClick={() => { setNoteDialogOpen(false); setTimeout(() => window.dispatchEvent(new Event("open-print-dialog")), 350); }}
                 >
                   <Printer className="w-4 h-4" /> Print
                 </Button>

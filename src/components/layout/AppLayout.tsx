@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AppSidebar from "./AppSidebar";
 import GoldRateBar from "./GoldRateBar";
+import PrintOptionsDialog from "@/components/shared/PrintOptionsDialog";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -58,6 +59,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </header>
 
         <GoldRateBar />
+        <PrintOptionsDialog />
         <main className="flex-1 overflow-auto">
           <div className="p-3 sm:p-5 md:p-6 max-w-7xl mx-auto w-full">
             {children}

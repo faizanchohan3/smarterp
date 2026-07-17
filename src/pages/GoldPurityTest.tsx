@@ -228,10 +228,10 @@ const GoldPurityTest = () => {
 
             {/* Action buttons */}
             <div className="flex gap-3 flex-wrap">
-              <Button onClick={() => window.print()} className="gap-2">
+              <Button onClick={() => window.dispatchEvent(new Event("open-print-dialog"))} className="gap-2">
                 <Printer className="w-4 h-4" /> Print Invoice
               </Button>
-              <Button variant="outline" onClick={() => window.print()} className="gap-2">
+              <Button variant="outline" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))} className="gap-2">
                 <Download className="w-4 h-4" /> Download PDF
               </Button>
             </div>

@@ -19,7 +19,7 @@ const ReportCustomers = () => {
             <h1 className="text-2xl font-bold">Customers Report</h1>
             <p className="text-sm text-muted-foreground">All registered customers</p>
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+          <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
             <Printer className="w-4 h-4" /> Print
           </Button>
         </div>

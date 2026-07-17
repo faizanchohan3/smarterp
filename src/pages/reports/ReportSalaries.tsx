@@ -38,7 +38,7 @@ const ReportSalaries = () => {
               <span className="text-muted-foreground text-xs">→</span>
               <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-auto h-8 text-sm border-0 p-0 focus-visible:ring-0" />
             </div>
-            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+            <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
             </Button>
           </div>

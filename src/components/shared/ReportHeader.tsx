@@ -27,7 +27,7 @@ const ReportHeader = ({ title, subtitle }: ReportHeaderProps) => {
   }, [shopPhone]);
 
   return (
-    <div className="bg-white print:bg-white">
+    <div className="bg-white print:bg-white print-branding">
       {/* Red Professional Header */}
       <div className="bg-red-700 text-white p-6 sm:p-8 print:bg-red-700">
         <div className="flex justify-between items-start gap-6">

@@ -85,7 +85,7 @@ const SalesReport = () => {
                   Clear
                 </Button>
                 <Button
-                  onClick={() => window.print()}
+                  onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}
                   className="flex-1 gap-2"
                 >
                   <Printer className="w-4 h-4" /> Print

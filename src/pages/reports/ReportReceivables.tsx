@@ -37,7 +37,7 @@ const ReportReceivables = () => {
             <h1 className="text-2xl font-bold">Receivables</h1>
             <p className="text-sm text-muted-foreground">Amounts customers owe you</p>
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+          <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
             <Printer className="w-4 h-4" /> Print
           </Button>
         </div>
