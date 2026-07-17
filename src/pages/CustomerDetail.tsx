@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatCard from "@/components/shared/StatCard";
@@ -24,6 +26,19 @@ const CustomerDetail = () => {
   const customerSales = sales.filter((s: any) => s.customer_id === id);
   const customerLedger = ledgerEntries.filter((e: any) => e.entry_type === "customer" && e.reference_id === id);
   const customerPayments = payments.filter((p: any) => p.type === "customer_payment" && p.reference_id === id);
+
+  // Fetch sale items for this customer's sales (for itemized detail under the ledger)
+  const [saleItems, setSaleItems] = useState<Record<string, any[]>>({});
+  useEffect(() => {
+    const ids = customerSales.map((s: any) => s.id);
+    if (ids.length === 0) return;
+    (async () => {
+      const { data } = await (supabase.from("sale_items") as any).select("*").in("sale_id", ids);
+      const grouped: Record<string, any[]> = {};
+      (data || []).forEach((it: any) => { (grouped[it.sale_id] ||= []).push(it); });
+      setSaleItems(grouped);
+    })();
+  }, [customerSales.length, id]);
 
   const totalSales = customerSales.reduce((s: number, sale: any) => s + Number(sale.final_amount), 0);
   const totalPaid = customerSales.reduce((s: number, sale: any) => s + Number(sale.paid_amount), 0);
@@ -160,6 +175,65 @@ const CustomerDetail = () => {
             ]} data={calcRunningBalance(customerLedger)} />
           </CardContent>
         </Card>
+
+        {/* ── Itemized Sales Detail — shows on screen AND in ledger print ── */}
+        {customerSales.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Sales Detail (Items, Weight & Rate)</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {[...customerSales].sort((a: any, b: any) => (a.created_at < b.created_at ? -1 : 1)).map((sale: any) => {
+                const items = saleItems[sale.id] || [];
+                const rem = Number(sale.final_amount) - Number(sale.paid_amount);
+                return (
+                  <div key={sale.id} className="border rounded-lg overflow-hidden break-inside-avoid">
+                    {/* Sale header */}
+                    <div className="flex flex-wrap justify-between gap-2 bg-muted/60 px-3 py-2 text-xs sm:text-sm font-semibold">
+                      <span>Invoice: {sale.invoice_number}</span>
+                      <span>{new Date(sale.created_at).toLocaleDateString()}</span>
+                      {Number(sale.tola_rate) > 0 && <span>Gold Rate: {formatCurrency(sale.tola_rate)}/tola</span>}
+                    </div>
+                    {/* Items table */}
+                    <table className="w-full text-xs sm:text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30 text-left">
+                          <th className="px-3 py-1.5 font-medium">Item</th>
+                          <th className="px-2 py-1.5 font-medium text-center">Qty</th>
+                          <th className="px-2 py-1.5 font-medium text-center">Weight</th>
+                          <th className="px-2 py-1.5 font-medium text-right">Making</th>
+                          <th className="px-3 py-1.5 font-medium text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.length === 0 ? (
+                          <tr><td colSpan={5} className="px-3 py-2 text-muted-foreground text-center">No item details</td></tr>
+                        ) : items.map((it: any) => (
+                          <tr key={it.id} className="border-b last:border-0">
+                            <td className="px-3 py-1.5">{it.product_name}</td>
+                            <td className="px-2 py-1.5 text-center">{Number(it.quantity) || 1}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              {Number(it.weight) > 0 ? `${Number(it.weight)} ${it.weight_unit || "g"}` : "-"}
+                              {it.purity_karat ? ` (${it.purity_karat}K)` : ""}
+                            </td>
+                            <td className="px-2 py-1.5 text-right">{Number(it.polish_waste) > 0 ? formatCurrency(it.polish_waste) : "-"}</td>
+                            <td className="px-3 py-1.5 text-right font-medium">{formatCurrency(it.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {/* Sale totals */}
+                    <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 px-3 py-2 border-t bg-muted/30 text-xs sm:text-sm">
+                      <span><strong>Total:</strong> {formatCurrency(sale.final_amount)}</span>
+                      <span className="text-success"><strong>Paid:</strong> {formatCurrency(sale.paid_amount)}</span>
+                      <span className={rem > 0 ? "text-destructive" : "text-success"}>
+                        <strong>Remaining:</strong> {formatCurrency(Math.max(0, rem))}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales History */}
         <Card className="print:hidden">
