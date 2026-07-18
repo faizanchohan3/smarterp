@@ -167,3 +167,15 @@
 }
 
 
+
+/* Never print dialogs, popovers, overlays or toasts — regardless of animation state */
+@media print {
+  [role="dialog"],
+  [role="alertdialog"],
+  [data-radix-popper-content-wrapper],
+  [data-sonner-toaster],
+  [data-state].fixed.inset-0,
+  .fixed.inset-0.z-50 {
+    display: none !important;
+  }
+}

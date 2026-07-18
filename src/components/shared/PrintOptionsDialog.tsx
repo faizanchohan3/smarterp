@@ -39,16 +39,18 @@ const PrintOptionsDialog = () => {
     return () => window.removeEventListener("open-print-dialog", handler);
   }, []);
 
+  // Wait for the dialog close animation to fully finish before printing,
+  // otherwise the dialog itself shows up in the printout.
   const printBranded = () => {
     setOpen(false);
-    setTimeout(() => window.print(), 150);
+    setTimeout(() => window.print(), 450);
   };
 
   const printOwnPad = () => {
     localStorage.setItem(LS_TOP, topMm);
     localStorage.setItem(LS_BOTTOM, bottomMm);
     setOpen(false);
-    setTimeout(() => printWithoutBranding(parseFloat(topMm) || 0, parseFloat(bottomMm) || 0), 150);
+    setTimeout(() => printWithoutBranding(parseFloat(topMm) || 0, parseFloat(bottomMm) || 0), 450);
   };
 
   return (
