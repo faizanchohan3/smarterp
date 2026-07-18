@@ -162,8 +162,8 @@
     border: 1px solid #e6c97a !important;
     color: #2a1f05 !important;
   }
-  tbody tr:nth-child(even) td { background: #fff8e7 !important; }
-  tbody tr:nth-child(odd) td { background: #fdf3d0 !important; }
+  tbody tr:nth-child(even) td { background: #ffffff !important; }
+  tbody tr:nth-child(odd) td { background: #ffffff !important; }
 }
 
 

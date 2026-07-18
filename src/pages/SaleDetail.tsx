@@ -418,84 +418,46 @@ const SaleDetail = () => {
               const prod = products.find((p: any) => p.id === item.product_id);
               return { i, item, wg, mc, prod };
             });
-            const isSingle = rows.length === 1;
-
             return (
               <>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", marginBottom: "0" }}>
+                <table className="print-white-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", marginBottom: "0" }}>
                   <thead>
                     <tr style={{ backgroundColor: "#7a1a1a", color: "#fff" }}>
-                      {isSingle ? (
-                        <>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 10px", textAlign: "left" }} colSpan={4}>Particulars</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "110px" }}>Making Charges</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "120px" }}>Amount (PKR)</th>
-                        </>
-                      ) : (
-                        <>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "36px" }}>S. No.</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "left" }}>Particulars</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "90px" }}>Weight (g)</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "90px" }}>Rate/Gram</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "100px" }}>Making</th>
-                          <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "110px" }}>Amount (PKR)</th>
-                        </>
-                      )}
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "34px" }}>S. No.</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "left" }}>Product Name</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "78px" }}>Weight (g)</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "80px" }}>Rate/Gram</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "95px" }}>Gold Value</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "85px" }}>Making</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "105px" }}>Total (PKR)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(({ i, item, wg, mc, prod }) => (
-                      isSingle ? (
-                        <tr key={item.id} style={{ backgroundColor: "#fff8f0" }}>
-                          {/* Single item: merged left cell with image + all details */}
-                          <td colSpan={4} style={{ border: "1px solid #ccc", padding: "14px 16px", verticalAlign: "top" }}>
-                            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                              {prod?.image_url && (
-                                <img src={prod.image_url} alt=""
-                                  style={{ width: "70px", height: "70px", objectFit: "cover", borderRadius: "6px", border: "1px solid #ddd", flexShrink: 0 }} />
-                              )}
-                              <div style={{ lineHeight: "1.8" }}>
-                                <div style={{ fontSize: "15px", fontWeight: "700", color: "#7a1a1a" }}>{item.product_name}</div>
-                                {wg > 0 && <div style={{ fontSize: "12px", color: "#555" }}>Weight: <strong>{wg.toFixed(3)} grams</strong></div>}
-                                {ratePerGram > 0 && <div style={{ fontSize: "12px", color: "#555" }}>Rate: <strong>{ratePerGram.toFixed(2)}/gram</strong></div>}
-                                {wg > 0 && ratePerGram > 0 && (
-                                  <div style={{ fontSize: "12px", color: "#555" }}>
-                                    Gold Value: <strong>{(wg * ratePerGram).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{ border: "1px solid #ccc", padding: "14px 10px", textAlign: "center", verticalAlign: "middle", fontWeight: "600" }}>
-                            {mc > 0 ? mc.toLocaleString() : "—"}
-                          </td>
-                          <td style={{ border: "1px solid #ccc", padding: "14px 10px", textAlign: "right", verticalAlign: "middle", fontWeight: "700", fontSize: "14px" }}>
-                            {Number(item.total) > 0 ? Number(item.total).toLocaleString() : ""}
-                          </td>
-                        </tr>
-                      ) : (
-                        <tr key={item.id} style={{ backgroundColor: i % 2 === 0 ? "#fff8f0" : "#fff" }}>
-                          <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{i + 1}</td>
-                          <td style={{ border: "1px solid #ccc", padding: "8px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              {prod?.image_url && (
-                                <img src={prod.image_url} alt=""
-                                  style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "4px", border: "1px solid #ddd" }} />
-                              )}
-                              <span>{item.product_name}</span>
-                            </div>
-                          </td>
-                          <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{wg > 0 ? wg.toFixed(3) : ""}</td>
-                          <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{ratePerGram > 0 ? ratePerGram.toFixed(2) : ""}</td>
-                          <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{mc > 0 ? mc.toLocaleString() : ""}</td>
-                          <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{Number(item.total) > 0 ? Number(item.total).toLocaleString() : ""}</td>
-                        </tr>
-                      )
+                      <tr key={item.id} style={{ backgroundColor: "#fff" }}>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", backgroundColor: "#fff" }}>{i + 1}</td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", backgroundColor: "#fff" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {prod?.image_url && (
+                              <img src={prod.image_url} alt=""
+                                style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "4px", border: "1px solid #ddd" }} />
+                            )}
+                            <span style={{ fontWeight: 600 }}>{item.product_name}{item.purity_karat ? ` (${item.purity_karat}K)` : ""}</span>
+                          </div>
+                        </td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", backgroundColor: "#fff" }}>{wg > 0 ? wg.toFixed(3) : "-"}</td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", backgroundColor: "#fff" }}>{ratePerGram > 0 ? ratePerGram.toFixed(2) : "-"}</td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", backgroundColor: "#fff" }}>
+                          {wg > 0 && ratePerGram > 0 ? (wg * ratePerGram).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}
+                        </td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", backgroundColor: "#fff" }}>{mc > 0 ? mc.toLocaleString() : "-"}</td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", fontWeight: 700, backgroundColor: "#fff" }}>{Number(item.total) > 0 ? Number(item.total).toLocaleString() : ""}</td>
+                      </tr>
                     ))}
                     {/* Note row — spans all columns */}
                     {printNote && (
                       <tr>
-                        <td colSpan={6} style={{ border: "1px solid #ccc", padding: "8px 12px", fontSize: "11px", color: "#444", fontStyle: "italic", backgroundColor: "#fffbf0" }}>
+                        <td colSpan={7} style={{ border: "1px solid #ccc", padding: "8px 12px", fontSize: "11px", color: "#444", fontStyle: "italic", backgroundColor: "#fff" }}>
                           <strong style={{ fontStyle: "normal" }}>Note: </strong>{printNote}
                         </td>
                       </tr>
