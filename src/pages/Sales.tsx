@@ -140,6 +140,10 @@ const Sales = () => {
       toast({ title: "No product found", description: `Code: ${code}`, variant: "destructive" });
       return;
     }
+    if (Number(matched.stock_quantity) <= 0) {
+      toast({ title: "Out of stock", description: `${matched.name} ka stock 0 hai`, variant: "destructive" });
+      return;
+    }
     updateItem(scannerOpenForRow, "product_id", matched.id);
     setScannerOpenForRow(null);
   };
@@ -425,7 +429,7 @@ const Sales = () => {
                           <Button type="button" variant="outline" size="icon" onClick={() => setScannerOpenForRow(i)} title="Scan barcode or QR code"><Scan className="w-4 h-4" /></Button>
                           <div className="flex-1">
                             <ProductCombobox
-                              products={products.filter((p: any) => p.business_id === businessId)}
+                              products={products.filter((p: any) => p.business_id === businessId && Number(p.stock_quantity) > 0)}
                               value={item.product_id}
                               onSelect={(v) => updateItem(i, "product_id", v)}
                               placeholder="Search product..."

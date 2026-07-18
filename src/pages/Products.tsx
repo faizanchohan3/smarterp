@@ -35,7 +35,11 @@ const Products = () => {
     { key: "name", label: "Name" },
     { key: "category_id", label: "Category", render: (v: string) => categories.find((c: any) => c.id === v)?.name || "-" },
     { key: "price", label: "Price", render: (v: number) => formatCurrency(v) },
-    { key: "stock_quantity", label: "Stock" },
+    { key: "stock_quantity", label: "Stock", render: (v: number) => (
+      Number(v) <= 0
+        ? <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-xs font-semibold">Out of Stock</span>
+        : <span className="font-medium">{v}</span>
+    )},
     { key: "purity_karat", label: "Purity", render: (v: number) => v ? `${v}K` : "-" },
     { key: "weight_value", label: "Weight", render: (v: number, row: any) => v ? `${v} ${row.weight_unit}` : "-" },
     { key: "serial_number", label: "Serial #", render: (v: string) => v || "-" },
@@ -154,7 +158,13 @@ const Products = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <DataTable columns={columns} data={data} onEdit={openEdit} onDelete={(row) => remove(row.id)} />
+        <DataTable
+          columns={columns}
+          data={data}
+          onEdit={openEdit}
+          onDelete={(row) => remove(row.id)}
+          rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "opacity-50 bg-muted/40 line-through-none" : ""}
+        />
       </div>
     </AppLayout>
   );

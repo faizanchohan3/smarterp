@@ -17,9 +17,10 @@ interface DataTableProps {
   onRowClick?: (row: any) => void;
   totals?: Record<string, React.ReactNode>;
   totalsLabel?: string;
+  rowClassName?: (row: any) => string;
 }
 
-const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total" }: DataTableProps) => {
+const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total", rowClassName }: DataTableProps) => {
   const hasActions = onEdit || onDelete || onSell;
   return (
     <div className="rounded-lg border bg-card">
@@ -41,7 +42,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
             </TableRow>
           ) : (
             data.map((row, i) => (
-              <TableRow key={row.id || i} className={onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} onClick={() => onRowClick?.(row)}>
+              <TableRow key={row.id || i} className={`${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} ${rowClassName ? rowClassName(row) : ""}`} onClick={() => onRowClick?.(row)}>
                 {columns.map((col) => (
                   <TableCell key={col.key}>
                     {col.render ? col.render(row[col.key], row) : row[col.key] ?? "-"}
