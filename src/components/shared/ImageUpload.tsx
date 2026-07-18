@@ -17,6 +17,7 @@ const sizeMap = { sm: "w-16 h-16", md: "w-24 h-24", lg: "w-32 h-32" };
 const ImageUpload = ({ currentUrl, onUpload, folder = "images", size = "md" }: ImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Map folder names to actual bucket names
@@ -73,7 +74,31 @@ const ImageUpload = ({ currentUrl, onUpload, folder = "images", size = "md" }: I
           {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
         </div>
       </div>
+
+      {/* Two easy options: take photo with camera (mobile) or pick from gallery/files */}
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => cameraRef.current?.click()}
+          className="text-[11px] px-2 py-1 rounded-md border bg-muted/50 hover:bg-muted flex items-center gap-1"
+        >
+          📷 Camera
+        </button>
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className="text-[11px] px-2 py-1 rounded-md border bg-muted/50 hover:bg-muted flex items-center gap-1"
+        >
+          🖼️ Gallery
+        </button>
+      </div>
+
+      {/* Gallery / file picker */}
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+      {/* Direct camera capture (mobile opens camera app) */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleUpload} disabled={uploading} />
     </div>
   );
 };
