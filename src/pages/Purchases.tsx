@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ import { formatCurrency } from "@/lib/currency";
 import { Plus, Trash2, Package, Archive } from "lucide-react";
 
 const Purchases = () => {
+  const navigate = useNavigate();
   const { data: purchases, fetch: fetchPurchases } = useBusinessData("purchases");
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: customers } = useBusinessData("customers");
@@ -284,10 +286,10 @@ const Purchases = () => {
     );
     if (custLedger) {
       const customer = customers.find((c: any) => c.id === custLedger.reference_id);
-      return { type: "customer" as const, name: customer?.name || "Customer" };
+      return { type: "customer" as const, name: customer?.name || "Customer", id: customer?.id || null };
     }
-    const name = suppliers.find((s: any) => s.id === purchase.supplier_id)?.name || "-";
-    return { type: "supplier" as const, name };
+    const supplier = suppliers.find((s: any) => s.id === purchase.supplier_id);
+    return { type: "supplier" as const, name: supplier?.name || "-", id: supplier?.id || null };
   };
 
   // Find the resale expense record for a given purchase
@@ -313,12 +315,29 @@ const Purchases = () => {
       key: "supplier_id", label: "From",
       render: (_: any, row: any) => {
         const src = getSource(row);
+        // Customer purchases open the customer's detail/ledger page;
+        // supplier purchases open that supplier's ledger.
+        const goToLedger = () => {
+          if (!src.id) return;
+          if (src.type === "customer") navigate(`/customers/${src.id}`);
+          else navigate(`/ledger?tab=supplier&id=${src.id}`);
+        };
         return (
           <span className="flex flex-col leading-tight">
             <span className={`text-xs font-semibold ${src.type === "customer" ? "text-blue-600" : "text-muted-foreground"}`}>
               {src.type === "customer" ? "Customer" : "Supplier"}
             </span>
-            <span className="text-sm">{src.name}</span>
+            {src.id ? (
+              <button
+                type="button"
+                className="text-sm text-primary hover:underline underline-offset-2 text-left font-medium"
+                onClick={(e) => { e.stopPropagation(); goToLedger(); }}
+              >
+                {src.name} ↗
+              </button>
+            ) : (
+              <span className="text-sm">{src.name}</span>
+            )}
           </span>
         );
       },
