@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
@@ -10,6 +11,7 @@ import { formatCurrency } from "@/lib/currency";
 import { ArrowDownCircle, ShoppingCart, Receipt, Printer } from "lucide-react";
 
 const ReportReceivables = () => {
+  const navigate = useNavigate();
   const { data: sales } = useBusinessData("sales");
   const { data: customers } = useBusinessData("customers");
   const { data: payments } = useBusinessData("payments");
@@ -50,7 +52,15 @@ const ReportReceivables = () => {
           <CardHeader className="pb-3"><CardTitle className="text-sm">Customer Receivables</CardTitle></CardHeader>
           <CardContent>
             <DataTable columns={[
-              { key: "name", label: "Customer" },
+              { key: "name", label: "Customer", render: (v: string, row: any) => (
+                <button
+                  type="button"
+                  className="text-primary hover:underline underline-offset-2 font-medium text-left"
+                  onClick={() => navigate(`/customers/${row.id}`)}
+                >
+                  {v} ↗
+                </button>
+              )},
               { key: "phone", label: "Phone" },
               { key: "total_sales", label: "Total Sales", render: (v: number) => formatCurrency(v) },
               { key: "total_paid", label: "Received", render: (v: number) => formatCurrency(v) },

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
@@ -10,6 +11,7 @@ import { formatCurrency } from "@/lib/currency";
 import { ArrowUpCircle, Receipt, Wallet, Printer } from "lucide-react";
 
 const ReportPayables = () => {
+  const navigate = useNavigate();
   const { data: purchases } = useBusinessData("purchases");
   const { data: suppliers } = useBusinessData("suppliers");
 
@@ -44,7 +46,15 @@ const ReportPayables = () => {
           <CardHeader className="pb-3"><CardTitle className="text-sm">Supplier Payables</CardTitle></CardHeader>
           <CardContent>
             <DataTable columns={[
-              { key: "name", label: "Supplier" },
+              { key: "name", label: "Supplier", render: (v, row) => (
+                <button
+                  type="button"
+                  className="text-primary hover:underline underline-offset-2 font-medium text-left"
+                  onClick={() => navigate(`/ledger?tab=supplier&id=${row.id}`)}
+                >
+                  {v} ↗
+                </button>
+              )},
               { key: "phone", label: "Phone" },
               { key: "total_purchases", label: "Total Purchases", render: (v: number) => formatCurrency(v) },
               { key: "total_paid", label: "Paid", render: (v: number) => formatCurrency(v) },
