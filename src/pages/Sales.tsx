@@ -8,6 +8,7 @@ import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
 import BarcodeScanner from "@/components/shared/BarcodeScanner";
 import ProductCombobox from "@/components/shared/ProductCombobox";
+import ImageUpload from "@/components/shared/ImageUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -50,7 +51,7 @@ const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): num
 const Sales = () => {
   const navigate = useNavigate();
   const { data: sales, fetch: fetchSales } = useBusinessData("sales");
-  const { data: customers } = useBusinessData("customers");
+  const { data: customers, fetch: fetchCustomers } = useBusinessData("customers");
   const { data: products } = useBusinessData("products");
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: goldRates } = useBusinessData("gold_rates" as any);
@@ -77,6 +78,31 @@ const Sales = () => {
   const [open, setOpen] = useState(false);
   const [scannerOpenForRow, setScannerOpenForRow] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
+  const [newCustOpen, setNewCustOpen] = useState(false);
+  const [newCust, setNewCust] = useState({ name: "", phone: "", alt_phone: "", reference: "", reference_phone: "", address: "", photo_url: "" });
+
+  const handleCreateCustomer = async () => {
+    if (!businessId || !newCust.name.trim()) {
+      toast({ title: "Customer name required", variant: "destructive" });
+      return;
+    }
+    const { data: created, error } = await (supabase.from("customers") as any).insert({
+      business_id: businessId,
+      name: newCust.name.trim(),
+      phone: newCust.phone || null,
+      alt_phone: newCust.alt_phone || null,
+      reference: newCust.reference || null,
+      reference_phone: newCust.reference_phone || null,
+      address: newCust.address || null,
+      photo_url: newCust.photo_url || null,
+    }).select().single();
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    await fetchCustomers();
+    setCustomerId(created.id);
+    setNewCustOpen(false);
+    setNewCust({ name: "", phone: "", alt_phone: "", reference: "", reference_phone: "", address: "", photo_url: "" });
+    toast({ title: `Customer "${created.name}" created & selected` });
+  };
   const [discount, setDiscount] = useState("0");
   const [paidAmount, setPaidAmount] = useState("");
   const [tolaRate, setTolaRate] = useState("");
@@ -309,7 +335,19 @@ const Sales = () => {
 
   const columns = [
     { key: "invoice_number", label: "Invoice #" },
-    { key: "customer_id", label: "Customer", render: (v: string) => customers.find((c: any) => c.id === v)?.name || "Walk-in" },
+    { key: "customer_id", label: "Customer", render: (v: string) => {
+      const cust = customers.find((c: any) => c.id === v);
+      if (!cust) return "Walk-in";
+      return (
+        <button
+          type="button"
+          className="text-primary underline-offset-2 hover:underline font-medium"
+          onClick={(e) => { e.stopPropagation(); navigate(`/customers/${cust.id}`); }}
+        >
+          {cust.name}
+        </button>
+      );
+    }},
     { key: "final_amount", label: "Amount", render: (v: number) => formatCurrency(v) },
     { key: "paid_amount", label: "Paid", render: (v: number) => formatCurrency(v) },
     { key: "id", label: "Remaining", render: (_: any, row: any) => {
@@ -374,13 +412,20 @@ const Sales = () => {
                 <DialogHeader><DialogTitle>Create Sale Invoice</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Select value={customerId} onValueChange={setCustomerId}>
-                      <SelectTrigger><SelectValue placeholder="Customer (optional)" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="walk-in">Walk-in Customer</SelectItem>
-                        {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-1.5">
+                      <div className="flex-1">
+                        <Select value={customerId} onValueChange={setCustomerId}>
+                          <SelectTrigger><SelectValue placeholder="Customer (optional)" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="walk-in">Walk-in Customer</SelectItem>
+                            {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button type="button" variant="outline" size="icon" title="Create new customer" onClick={() => setNewCustOpen(true)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
                     <Input
                       type="date"
                       value={repaymentDate}
@@ -388,6 +433,29 @@ const Sales = () => {
                       title="Repayment Due Date"
                     />
                   </div>
+
+                  {/* ── Quick Create Customer ── */}
+                  <Dialog open={newCustOpen} onOpenChange={setNewCustOpen}>
+                    <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+                      <DialogHeader><DialogTitle>New Customer</DialogTitle></DialogHeader>
+                      <div className="space-y-3">
+                        <div className="flex justify-center">
+                          <ImageUpload currentUrl={newCust.photo_url} onUpload={(url) => setNewCust({ ...newCust, photo_url: url })} folder="customers" size="sm" />
+                        </div>
+                        <Input placeholder="Customer Name *" value={newCust.name} onChange={e => setNewCust({ ...newCust, name: e.target.value })} required />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input placeholder="Phone" value={newCust.phone} onChange={e => setNewCust({ ...newCust, phone: e.target.value })} />
+                          <Input placeholder="Alternative Phone" value={newCust.alt_phone} onChange={e => setNewCust({ ...newCust, alt_phone: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input placeholder="Reference Name" value={newCust.reference} onChange={e => setNewCust({ ...newCust, reference: e.target.value })} />
+                          <Input placeholder="Reference Phone" value={newCust.reference_phone} onChange={e => setNewCust({ ...newCust, reference_phone: e.target.value })} />
+                        </div>
+                        <Input placeholder="Address" value={newCust.address} onChange={e => setNewCust({ ...newCust, address: e.target.value })} />
+                        <Button className="w-full" onClick={handleCreateCustomer}>Create & Select Customer</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   {latestRate && (
                     <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
                       <div className="font-semibold mb-1">

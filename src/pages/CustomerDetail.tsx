@@ -21,6 +21,7 @@ const CustomerDetail = () => {
   const { data: sales } = useBusinessData("sales");
   const { data: ledgerEntries } = useBusinessData("ledger_entries");
   const { data: payments } = useBusinessData("payments");
+  const { data: customOrders } = useBusinessData("custom_orders");
 
   const customer = customers.find((c: any) => c.id === id);
   const customerSales = sales.filter((s: any) => s.customer_id === id);
@@ -166,7 +167,42 @@ const CustomerDetail = () => {
           <CardContent>
             <DataTable columns={[
               { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
-              { key: "description", label: "Description" },
+              { key: "description", label: "Description", render: (v: string) => {
+                // Link ledger entries to their source document (sale invoice / purchase / custom order)
+                const invMatch = v?.match(/INV-[A-Z0-9]+/);
+                if (invMatch) {
+                  const linkedSale = sales.find((s: any) => s.invoice_number === invMatch[0]);
+                  if (linkedSale) {
+                    return (
+                      <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+                        onClick={() => navigate(`/sales/${linkedSale.id}`)}>
+                        {v} ↗
+                      </button>
+                    );
+                  }
+                }
+                if (v?.startsWith("CUST_PURCHASE:")) {
+                  return (
+                    <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+                      onClick={() => navigate("/purchases")}>
+                      Customer Purchase ↗
+                    </button>
+                  );
+                }
+                const coMatch = v?.match(/CO-[A-Z0-9]+/);
+                if (coMatch) {
+                  const order = customOrders.find((o: any) => o.order_number === coMatch[0]);
+                  if (order) {
+                    return (
+                      <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+                        onClick={() => navigate(`/custom-orders/${order.id}`)}>
+                        {v} ↗
+                      </button>
+                    );
+                  }
+                }
+                return v;
+              }},
               { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
               { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
               { key: "running_balance", label: "Balance", render: (v: number) => (
@@ -188,7 +224,10 @@ const CustomerDetail = () => {
                   <div key={sale.id} className="border rounded-lg overflow-hidden break-inside-avoid">
                     {/* Sale header */}
                     <div className="flex flex-wrap justify-between gap-2 bg-muted/60 px-3 py-2 text-xs sm:text-sm font-semibold">
-                      <span>Invoice: {sale.invoice_number}</span>
+                      <button type="button" className="text-primary hover:underline underline-offset-2"
+                        onClick={() => navigate(`/sales/${sale.id}`)}>
+                        Invoice: {sale.invoice_number} ↗
+                      </button>
                       <span>{new Date(sale.created_at).toLocaleDateString()}</span>
                       {Number(sale.tola_rate) > 0 && <span>Gold Rate: {formatCurrency(sale.tola_rate)}/tola</span>}
                     </div>
@@ -264,6 +303,17 @@ const CustomerDetail = () => {
               { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
               { key: "amount", label: "Amount", render: (v: number) => formatCurrency(v) },
               { key: "description", label: "Description" },
+              { key: "sale_id", label: "Invoice", render: (v: string) => {
+                if (!v) return "-";
+                const linkedSale = sales.find((s: any) => s.id === v);
+                if (!linkedSale) return "-";
+                return (
+                  <button type="button" className="text-primary hover:underline underline-offset-2"
+                    onClick={() => navigate(`/sales/${v}`)}>
+                    {linkedSale.invoice_number} ↗
+                  </button>
+                );
+              }},
             ]} data={customerPayments} />
           </CardContent>
         </Card>

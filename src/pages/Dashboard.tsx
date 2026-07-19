@@ -43,13 +43,24 @@ const Dashboard = () => {
       const [salesRes, purchasesRes, expensesRes, customersRes] = await Promise.all([
         supabase.from("sales").select("id, invoice_number, customer_id, final_amount, paid_amount, created_at, repayment_date").eq("business_id", businessId),
         supabase.from("purchases").select("total_amount, paid_amount, created_at").eq("business_id", businessId),
-        supabase.from("expenses").select("amount").eq("business_id", businessId),
+        supabase.from("expenses").select("amount, created_at").eq("business_id", businessId),
         supabase.from("customers").select("id, name").eq("business_id", businessId),
       ]);
 
-      const totalSales = salesRes.data?.reduce((sum, s) => sum + Number(s.final_amount), 0) || 0;
-      const totalPurchases = purchasesRes.data?.reduce((sum, p) => sum + Number(p.total_amount), 0) || 0;
-      const totalExpenses = expensesRes.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      // ── Current month window (1st → today). Resets automatically on the 1st. ──
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const inThisMonth = (dateStr?: string) => dateStr ? new Date(dateStr) >= monthStart : false;
+
+      const monthSales = (salesRes.data || []).filter((s: any) => inThisMonth(s.created_at));
+      const monthPurchases = (purchasesRes.data || []).filter((p: any) => inThisMonth(p.created_at));
+      const monthExpenses = (expensesRes.data || []).filter((e: any) => inThisMonth(e.created_at));
+
+      const totalSales = monthSales.reduce((sum, s: any) => sum + Number(s.final_amount), 0);
+      const totalPurchases = monthPurchases.reduce((sum, p: any) => sum + Number(p.total_amount), 0);
+      const totalExpenses = monthExpenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
+
+      // Receivable / Payable: FULL all-time totals (not month-limited)
       const receivable = (salesRes.data?.reduce((sum, s) => sum + (Number(s.final_amount) - Number(s.paid_amount)), 0)) || 0;
       const payable = (purchasesRes.data?.reduce((sum, p) => sum + (Number(p.total_amount) - Number(p.paid_amount)), 0)) || 0;
 
@@ -169,12 +180,19 @@ const Dashboard = () => {
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <StatCard title="Total Sales" value={formatCurrency(stats.sales)} icon={ShoppingCart} gradient="gold" onClick={() => navigate("/sales")} />
-          <StatCard title="Purchases" value={formatCurrency(stats.purchases)} icon={Receipt} gradient="purple" onClick={() => navigate("/purchases")} />
-          <StatCard title="Expenses" value={formatCurrency(stats.expenses)} icon={Wallet} gradient="red" onClick={() => navigate("/expenses")} />
-          <StatCard title="Profit/Loss" value={formatCurrency(stats.profit)} icon={stats.profit >= 0 ? TrendingUp : TrendingDown} trend={stats.profit >= 0 ? "up" : "down"} gradient={stats.profit >= 0 ? "green" : "red"} onClick={() => navigate("/reports/profit-loss")} />
-          <StatCard title="To Receive" value={formatCurrency(stats.receivable)} subtitle="From customers" icon={ArrowDownCircle} gradient="teal" onClick={() => navigate("/reports/receivables")} />
-          <StatCard title="To Pay" value={formatCurrency(stats.payable)} subtitle="To suppliers" icon={ArrowUpCircle} gradient="amber" onClick={() => navigate("/reports/payables")} />
+          {(() => {
+            const monthLabel = `1 ${new Date().toLocaleDateString("en", { month: "short" })} → ${new Date().getDate()} ${new Date().toLocaleDateString("en", { month: "short" })}`;
+            return (
+              <>
+                <StatCard title="Total Sales" value={formatCurrency(stats.sales)} subtitle={monthLabel} icon={ShoppingCart} gradient="gold" onClick={() => navigate("/sales")} />
+                <StatCard title="Purchases" value={formatCurrency(stats.purchases)} subtitle={monthLabel} icon={Receipt} gradient="purple" onClick={() => navigate("/purchases")} />
+                <StatCard title="Expenses" value={formatCurrency(stats.expenses)} subtitle={monthLabel} icon={Wallet} gradient="red" onClick={() => navigate("/expenses")} />
+                <StatCard title="Profit/Loss" value={formatCurrency(stats.profit)} subtitle={monthLabel} icon={stats.profit >= 0 ? TrendingUp : TrendingDown} trend={stats.profit >= 0 ? "up" : "down"} gradient={stats.profit >= 0 ? "green" : "red"} onClick={() => navigate("/reports/profit-loss")} />
+                <StatCard title="To Receive" value={formatCurrency(stats.receivable)} subtitle="All-time • From customers" icon={ArrowDownCircle} gradient="teal" onClick={() => navigate("/reports/receivables")} />
+                <StatCard title="To Pay" value={formatCurrency(stats.payable)} subtitle="All-time • To suppliers" icon={ArrowUpCircle} gradient="amber" onClick={() => navigate("/reports/payables")} />
+              </>
+            );
+          })()}
         </div>
 
         <Card className="border-amber-500/20 shadow-soft overflow-hidden">
