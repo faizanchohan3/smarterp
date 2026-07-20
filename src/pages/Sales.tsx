@@ -589,7 +589,7 @@ const Sales = () => {
                                   <SelectTrigger className="h-8"><SelectValue placeholder="Select Supplier" /></SelectTrigger>
                                   <SelectContent>
                                     {suppliers.length === 0 ? (
-                                      <SelectItem value="" disabled>No suppliers found</SelectItem>
+                                      <SelectItem value="none" disabled>No suppliers found</SelectItem>
                                     ) : (
                                       suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
                                     )}
