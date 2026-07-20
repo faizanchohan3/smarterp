@@ -152,6 +152,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       business_id: biz.id,
     });
 
+    await supabase.from("profiles").upsert({
+      user_id: data.user.id,
+      business_id: biz.id,
+      full_name: fullName,
+      email,
+      phone,
+    });
+
     setBusinessId(biz.id);
     setBusinessStatus("pending");
     setShopName(shopNameVal);
