@@ -350,6 +350,35 @@ const SaleDetail = () => {
               </div>
             </div>
 
+            {/* ── Internal Profit Summary — screen only, NEVER printed, NEVER shown to customer ── */}
+            {(() => {
+              const tolaRate = Number((sale as any).tola_rate) || 0;
+              let totalCost = 0;
+              items.forEach((it: any) => {
+                const qty = Number(it.quantity) || 1;
+                if (Number(it.cost_weight) > 0 && tolaRate > 0) {
+                  totalCost += (Number(it.cost_weight) / TOLA_IN_GRAMS) * tolaRate * qty;
+                } else if (Number(it.cost_price) > 0) {
+                  totalCost += Number(it.cost_price) * qty;
+                }
+              });
+              if (totalCost <= 0) return null;
+              const profit = Number(sale.final_amount) - totalCost;
+              return (
+                <div className="mt-6 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-3">
+                  <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide mb-1.5">Internal Only — Not Shown to Customer</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Cost (gold weight basis)</span>
+                    <span className="font-medium">{formatCurrency(totalCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span className="text-muted-foreground">Profit</span>
+                    <span className={profit >= 0 ? "text-success" : "text-destructive"}>{formatCurrency(profit)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {payments.length > 0 && (
               <div className="mt-8">
                 <h3 className="text-sm font-semibold mb-2">Repayment History</h3>

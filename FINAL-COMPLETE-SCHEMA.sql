@@ -150,6 +150,7 @@ CREATE TABLE public.products (
   purity_karat INTEGER,
   gross_weight NUMERIC(12,4),
   net_weight NUMERIC(12,4),
+  cost_weight NUMERIC(12,4),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -234,6 +235,8 @@ CREATE TABLE public.sale_items (
   purity_karat INTEGER,
   gross_weight NUMERIC(12,4),
   net_weight NUMERIC(12,4),
+  cost_weight NUMERIC(12,4),
+  cost_price NUMERIC(12,2),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

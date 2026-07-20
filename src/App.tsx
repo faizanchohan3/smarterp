@@ -27,6 +27,7 @@ import GoldRates from "./pages/GoldRates";
 import GoldRateReport from "./pages/GoldRateReport";
 import ReportProfitLoss from "./pages/reports/ReportProfitLoss";
 import ReportBalanceSheet from "./pages/reports/ReportBalanceSheet";
+import ReportGoldProfit from "./pages/reports/ReportGoldProfit";
 import ReportReceivables from "./pages/reports/ReportReceivables";
 import SalesReport from "./pages/SalesReport";
 import ReportPayables from "./pages/reports/ReportPayables";
@@ -110,6 +111,7 @@ const AppRoutes = () => {
       <Route path="/reports" element={<Navigate to="/reports/profit-loss" replace />} />
       <Route path="/reports/profit-loss" element={<ReportProfitLoss />} />
       <Route path="/reports/balance-sheet" element={<ReportBalanceSheet />} />
+      <Route path="/reports/gold-profit" element={<ReportGoldProfit />} />
       <Route path="/reports/receivables" element={<ReportReceivables />} />
       <Route path="/reports/payables" element={<ReportPayables />} />
       <Route path="/reports/sales" element={<ReportSales />} />

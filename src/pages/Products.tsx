@@ -20,7 +20,7 @@ const Products = () => {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({
     name: "", category_id: "", price: "", weight_value: "", weight_unit: "gram", stock_quantity: "", image_url: "",
-    purity_karat: "", gross_weight: "", net_weight: "", serial_number: "",
+    purity_karat: "", gross_weight: "", net_weight: "", serial_number: "", cost_weight: "",
   });
 
   const generateSerial = () => `SN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -42,6 +42,7 @@ const Products = () => {
     )},
     { key: "purity_karat", label: "Purity", render: (v: number) => v ? `${v}K` : "-" },
     { key: "weight_value", label: "Weight", render: (v: number, row: any) => v ? `${v} ${row.weight_unit}` : "-" },
+    { key: "cost_weight", label: "Cost Wt (g)", render: (v: number) => v ? Number(v).toFixed(4) : "-" },
     { key: "serial_number", label: "Serial #", render: (v: string) => v || "-" },
   ];
 
@@ -64,13 +65,14 @@ const Products = () => {
       gross_weight: grossWeight,
       net_weight: netWeightCalc,
       serial_number: form.serial_number || null,
+      cost_weight: form.cost_weight ? parseFloat(form.cost_weight) : null,
     };
 
     const ok = editing ? await update(editing.id, record) : await create(record);
     if (ok) { setOpen(false); setEditing(null); resetForm(); }
   };
 
-  const resetForm = () => setForm({ name: "", category_id: "", price: "", weight_value: "", weight_unit: "gram", stock_quantity: "", image_url: "", purity_karat: "", gross_weight: "", net_weight: "", serial_number: "" });
+  const resetForm = () => setForm({ name: "", category_id: "", price: "", weight_value: "", weight_unit: "gram", stock_quantity: "", image_url: "", purity_karat: "", gross_weight: "", net_weight: "", serial_number: "", cost_weight: "" });
 
   const openEdit = (row: any) => {
     setEditing(row);
@@ -86,6 +88,7 @@ const Products = () => {
       gross_weight: row.gross_weight ? String(row.gross_weight) : "",
       net_weight: row.net_weight ? String(row.net_weight) : "",
       serial_number: row.serial_number || "",
+      cost_weight: row.cost_weight ? String(row.cost_weight) : "",
     });
     setOpen(true);
   };
@@ -145,6 +148,21 @@ const Products = () => {
                   <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
                     Net Weight: {form.gross_weight && form.purity_karat ? fineWeight(parseFloat(form.gross_weight), parseInt(form.purity_karat)).toFixed(4) : "—"} g
                   </div>
+                </div>
+
+                {/* Cost Weight — internal only, never shown to customer */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">COST (INTERNAL ONLY — NEVER PRINTED)</p>
+                  <Input
+                    placeholder="Cost Weight (g) — fine gold weight for profit calculation"
+                    type="number" step="0.0001"
+                    value={form.cost_weight}
+                    onChange={e => setForm({ ...form, cost_weight: e.target.value })}
+                    className="text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Apna Kaat nikaal ke fine weight yahan type karo. Customer ko sirf Gross Weight (upar) dikhega.
+                  </p>
                 </div>
 
                 {/* Serial & ID */}

@@ -39,6 +39,7 @@ const serviceMenuItems = [
 const reportMenuItems = [
   { label: "Profit & Loss", icon: TrendingUp, path: "/reports/profit-loss" },
   { label: "Balance Sheet", icon: FileSpreadsheet, path: "/reports/balance-sheet" },
+  { label: "Gold Profit", icon: Coins, path: "/reports/gold-profit" },
   { label: "Receivables", icon: ArrowDownCircle, path: "/reports/receivables" },
   { label: "Payables", icon: ArrowUpCircle, path: "/reports/payables" },
   { label: "Sales Report", icon: ShoppingCart, path: "/reports/sales" },

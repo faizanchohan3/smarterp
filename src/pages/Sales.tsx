@@ -39,6 +39,7 @@ interface SaleItem {
   in_stock?: boolean; // true = have in inventory, false = drop-ship from supplier
   supplier_id?: string; // supplier to buy from if not in stock
   cost_price?: number; // cost from supplier for drop-ship items
+  cost_weight?: number; // fine gold weight (grams) for profit calc — internal only, never printed
 }
 
 const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): number => {
@@ -109,7 +110,7 @@ const Sales = () => {
   const [repaymentDate, setRepaymentDate] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0, cost_weight: 0 }]);
 
   const goldPerUnitCalc = (weightStr: string | number, weightUnit: string, rate: number) => {
     const weight = parseFloat(String(weightStr)) || 0;
@@ -129,6 +130,7 @@ const Sales = () => {
         updated[index].purity_karat = prod.purity_karat || null;
         updated[index].gross_weight = Number(prod.gross_weight) || 0;
         updated[index].net_weight = prod.gross_weight && prod.purity_karat ? fineWeight(Number(prod.gross_weight), prod.purity_karat) : 0;
+        updated[index].cost_weight = Number(prod.cost_weight) || 0;
       }
     }
     const rate = parseFloat(tolaRate) || 0;
@@ -240,6 +242,8 @@ const Sales = () => {
         purity_karat: item.purity_karat || null,
         gross_weight: item.gross_weight || 0,
         net_weight: item.net_weight || 0,
+        cost_weight: item.in_stock !== false ? (Number(item.cost_weight) || 0) : 0,
+        cost_price: item.in_stock === false ? (Number(item.cost_price) || 0) : 0,
       }))
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
@@ -557,6 +561,25 @@ const Sales = () => {
                               Have this item in stock?
                             </label>
                           </div>
+
+                          {/* Own-stock cost weight (internal — never printed) */}
+                          {item.in_stock !== false && (
+                            <div className="grid grid-cols-2 gap-2 items-end">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Cost Weight (g) — internal</label>
+                                <Input
+                                  type="number" step="0.0001" placeholder="0" className="h-8"
+                                  value={item.cost_weight || ""}
+                                  onChange={e => updateItem(i, "cost_weight", parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                              {rate > 0 && Number(item.cost_weight) > 0 && (
+                                <p className="text-xs text-success font-medium pb-1.5">
+                                  💰 Profit: {formatCurrency((item.total || 0) - ((Number(item.cost_weight) / TOLA_IN_GRAMS) * rate * (item.quantity || 1)))}
+                                </p>
+                              )}
+                            </div>
+                          )}
 
                           {item.in_stock === false && (
                             <div className="space-y-2 bg-amber-50/50 p-2 rounded border border-amber-200">
