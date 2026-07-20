@@ -97,6 +97,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Show the loading spinner (not stale/blank role state) until the
+        // freshly logged-in user's role & business status are fetched —
+        // otherwise the app briefly renders "Pending Approval" or a 404
+        // using leftover state from before login.
+        setLoading(true);
         setTimeout(async () => {
           await fetchUserData(session.user.id);
           setLoading(false);

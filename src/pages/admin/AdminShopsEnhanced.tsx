@@ -8,14 +8,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Edit2 } from "lucide-react";
+import { Trash2, Edit2, Key } from "lucide-react";
+import { adminResetPassword } from "@/lib/adminApi";
 
 const AdminShopsEnhanced = () => {
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShop, setSelectedShop] = useState<any>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const { toast } = useToast();
+
+  const handleResetPassword = async () => {
+    if (!selectedShop?.user_id || !newPassword || newPassword.length < 6) {
+      toast({ title: "Error", description: "Enter a password with at least 6 characters", variant: "destructive" });
+      return;
+    }
+    const { error } = await adminResetPassword(selectedShop.user_id, newPassword);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+      return;
+    }
+    toast({ title: `Password reset for ${selectedShop.shop_name}` });
+    setPasswordOpen(false);
+    setNewPassword("");
+  };
 
   const fetchShops = async () => {
     const { data } = await supabase
@@ -126,6 +144,14 @@ const AdminShopsEnhanced = () => {
           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
             <Edit2 className="w-4 h-4" /> Edit
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!row.user_id}
+            onClick={(e) => { e.stopPropagation(); setSelectedShop(row); setNewPassword(""); setPasswordOpen(true); }}
+          >
+            <Key className="w-4 h-4" /> Password
+          </Button>
           {row.status !== "approved" && (
             <Button size="sm" onClick={(e) => { e.stopPropagation(); updateStatus(row.id, "approved"); }}>
               Approve
@@ -189,6 +215,29 @@ const AdminShopsEnhanced = () => {
               />
               <Button className="w-full" onClick={updateShop}>
                 Save Changes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Password — {selectedShop?.shop_name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Login Email: {selectedShop?.login_email}
+              </p>
+              <Input
+                type="password"
+                placeholder="New Password (min 6 characters)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <Button className="w-full" onClick={handleResetPassword}>
+                Reset Password
               </Button>
             </div>
           </DialogContent>

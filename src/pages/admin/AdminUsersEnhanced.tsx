@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Lock, Key } from "lucide-react";
+import { adminResetPassword, adminDeleteUser } from "@/lib/adminApi";
 
 const AdminUsersEnhanced = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -35,17 +36,15 @@ const AdminUsersEnhanced = () => {
   };
 
   const changePassword = async () => {
-    if (!selectedUser || !newPassword) {
-      toast({ title: "Error", description: "Please enter a password", variant: "destructive" });
+    if (!selectedUser || !newPassword || newPassword.length < 6) {
+      toast({ title: "Error", description: "Enter a password with at least 6 characters", variant: "destructive" });
       return;
     }
 
-    const { error } = await supabase.auth.admin.updateUserById(selectedUser.user_id, {
-      password: newPassword,
-    });
+    const { error } = await adminResetPassword(selectedUser.user_id, newPassword);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error, variant: "destructive" });
       return;
     }
 
@@ -89,10 +88,10 @@ const AdminUsersEnhanced = () => {
       return;
     }
 
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    const { error } = await adminDeleteUser(userId);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error, variant: "destructive" });
       return;
     }
 
