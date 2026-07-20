@@ -22,7 +22,14 @@ const AdminShopsEnhanced = () => {
       .from("businesses")
       .select("*")
       .order("created_at", { ascending: false });
-    setShops(data || []);
+
+    // Attach the login email for each shop (profiles.user_id -> businesses.user_id)
+    const { data: profiles } = await supabase.from("profiles").select("user_id, email");
+    const withEmail = (data || []).map((shop: any) => ({
+      ...shop,
+      login_email: profiles?.find((p: any) => p.user_id === shop.user_id)?.email || "-",
+    }));
+    setShops(withEmail);
   };
 
   useEffect(() => {
@@ -95,6 +102,7 @@ const AdminShopsEnhanced = () => {
   const columns = [
     { key: "shop_name", label: "Shop Name" },
     { key: "owner_name", label: "Owner" },
+    { key: "login_email", label: "Login Email" },
     { key: "phone", label: "Phone" },
     {
       key: "status",
