@@ -79,7 +79,7 @@ const ReportInventory = () => {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 print:grid-cols-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 print:grid-cols-6">
           <StatCard title="Total Products" value={String(totalProducts)} icon={Package} gradient="blue" />
           <StatCard title="Categories" value={String(categoryBreakdown.length)} icon={Tag} gradient="purple" />
           <StatCard title="Total Gross Weight" value={`${totalGrossWeight.toFixed(3)} g`} icon={Scale} gradient="amber" />

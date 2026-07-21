@@ -39,8 +39,8 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map((col) => (
-              <TableHead key={col.key}>{col.label}</TableHead>
+            {columns.map((col, idx) => (
+              <TableHead key={`${col.key}-${idx}`}>{col.label}</TableHead>
             ))}
             {hasActions && <TableHead className="w-32">Actions</TableHead>}
           </TableRow>
@@ -64,8 +64,8 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
                 style={pageSize && !onCurrentPage ? { display: "none" } : undefined}
                 onClick={() => onRowClick?.(row)}
               >
-                {columns.map((col) => (
-                  <TableCell key={col.key}>
+                {columns.map((col, idx) => (
+                  <TableCell key={`${col.key}-${idx}`}>
                     {col.render ? col.render(row[col.key], row) : row[col.key] ?? "-"}
                   </TableCell>
                 ))}
@@ -99,7 +99,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
           <tfoot className="bg-muted/40 font-bold border-t-2">
             <tr>
               {columns.map((col, idx) => (
-                <td key={col.key} className="px-4 py-2 text-sm">
+                <td key={`${col.key}-${idx}`} className="px-4 py-2 text-sm">
                   {idx === 0 ? totalsLabel : (totals[col.key] ?? "")}
                 </td>
               ))}
