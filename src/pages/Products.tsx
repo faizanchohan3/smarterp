@@ -44,7 +44,7 @@ const Products = () => {
         : <span className="font-medium">{v}</span>
     )},
     { key: "purity_karat", label: "Purity", render: (v: number) => v ? `${v}K` : "-" },
-    { key: "weight_value", label: "Weight", render: (v: number, row: any) => v ? `${v} ${row.weight_unit}` : "-" },
+    { key: "weight_value", label: "Weight", render: (v: number, row: any) => v ? `${Number(v).toFixed(3)} ${row.weight_unit}` : "-" },
     { key: "cost_weight", label: "Cost Wt (g)", render: (v: number) => v ? Number(v).toFixed(4) : "-" },
     { key: "serial_number", label: "Serial #", render: (v: string) => v || "-" },
   ];
