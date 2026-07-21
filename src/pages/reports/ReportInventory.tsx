@@ -41,8 +41,10 @@ const ReportInventory = () => {
   const totalProducts = products.length;
   const totalStockValue = products.reduce((sum: number, p: any) => sum + (Number(p.price) * Number(p.stock_quantity)), 0);
   const totalStock = products.reduce((sum: number, p: any) => sum + Number(p.stock_quantity), 0);
-  const totalGrossWeight = products.reduce((sum: number, p: any) => sum + (Number(p.gross_weight) || 0), 0);
-  const totalNetWeight = products.reduce((sum: number, p: any) => sum + (Number(p.net_weight) || 0), 0);
+  // Gross/Net/Cost weight on a product is PER UNIT — multiply by stock_quantity for the true inventory total
+  const totalGrossWeight = products.reduce((sum: number, p: any) => sum + (Number(p.gross_weight) || 0) * Number(p.stock_quantity || 0), 0);
+  const totalNetWeight = products.reduce((sum: number, p: any) => sum + (Number(p.net_weight) || 0) * Number(p.stock_quantity || 0), 0);
+  const totalCostWeight = products.reduce((sum: number, p: any) => sum + (Number(p.cost_weight) || 0) * Number(p.stock_quantity || 0), 0);
 
   const categoryBreakdown = categories.map((c: any) => {
     const prods = products.filter((p: any) => p.category_id === c.id);
@@ -51,8 +53,9 @@ const ReportInventory = () => {
       name: c.name,
       count: prods.length,
       stock: prods.reduce((s: number, p: any) => s + Number(p.stock_quantity || 0), 0),
-      grossWeight: prods.reduce((s: number, p: any) => s + (Number(p.gross_weight) || 0), 0),
-      netWeight: prods.reduce((s: number, p: any) => s + (Number(p.net_weight) || 0), 0),
+      grossWeight: prods.reduce((s: number, p: any) => s + (Number(p.gross_weight) || 0) * Number(p.stock_quantity || 0), 0),
+      netWeight: prods.reduce((s: number, p: any) => s + (Number(p.net_weight) || 0) * Number(p.stock_quantity || 0), 0),
+      costWeight: prods.reduce((s: number, p: any) => s + (Number(p.cost_weight) || 0) * Number(p.stock_quantity || 0), 0),
     };
   });
   const uncategorizedCount = products.filter((p: any) => !p.category_id).length;
@@ -76,11 +79,12 @@ const ReportInventory = () => {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 print:grid-cols-5">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 print:grid-cols-6">
           <StatCard title="Total Products" value={String(totalProducts)} icon={Package} gradient="blue" />
           <StatCard title="Categories" value={String(categoryBreakdown.length)} icon={Tag} gradient="purple" />
           <StatCard title="Total Gross Weight" value={`${totalGrossWeight.toFixed(3)} g`} icon={Scale} gradient="amber" />
           <StatCard title="Total Net Weight" value={`${totalNetWeight.toFixed(3)} g`} icon={Scale} gradient="green" />
+          <StatCard title="Total Cost Weight" value={`${totalCostWeight.toFixed(3)} g`} icon={Scale} gradient="pink" />
           <StatCard title="Total Stock Value" value={formatCurrency(totalStockValue)} icon={ShoppingCart} gradient="blue" />
         </div>
 
@@ -94,6 +98,7 @@ const ReportInventory = () => {
               { key: "stock", label: "Stock Qty" },
               { key: "grossWeight", label: "Gross Weight (g)", render: (v: number) => v.toFixed(3) },
               { key: "netWeight", label: "Net Weight (g)", render: (v: number) => v.toFixed(3) },
+              { key: "costWeight", label: "Cost Weight (g)", render: (v: number) => v > 0 ? v.toFixed(3) : "-" },
             ]} data={categoryBreakdown} />
             {uncategorizedCount > 0 && (
               <p className="text-xs text-muted-foreground mt-2">+ {uncategorizedCount} product(s) without a category</p>
@@ -116,8 +121,9 @@ const ReportInventory = () => {
               )},
               { key: "category_id", label: "Category", render: (v: string) => categories.find((c: any) => c.id === v)?.name || "-" },
               { key: "stock_quantity", label: "Stock" },
-              { key: "gross_weight", label: "Gross Wt (g)", render: (v: number) => v ? Number(v).toFixed(3) : "-" },
-              { key: "net_weight", label: "Net Wt (g)", render: (v: number) => v ? Number(v).toFixed(3) : "-" },
+              { key: "gross_weight", label: "Gross Wt/unit (g)", render: (v: number) => v ? Number(v).toFixed(3) : "-" },
+              { key: "net_weight", label: "Net Wt/unit (g)", render: (v: number) => v ? Number(v).toFixed(3) : "-" },
+              { key: "cost_weight", label: "Cost Wt/unit (g)", render: (v: number) => v ? Number(v).toFixed(4) : "-" },
               { key: "id", label: "Total Sold", render: (_: any, row: any) => totalSold(row.id) || "-" },
               { key: "id", label: "Total Sales", render: (_: any, row: any) => {
                 const amt = totalSaleAmount(row.id);
