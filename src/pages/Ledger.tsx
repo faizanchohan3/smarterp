@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import ReportHeader from "@/components/shared/ReportHeader";
@@ -14,7 +16,19 @@ import { formatCurrency } from "@/lib/currency";
 import { Printer } from "lucide-react";
 
 const Ledger = () => {
-  const { data: ledgerEntries } = useBusinessData("ledger_entries");
+  const { data: ledgerEntries, fetch: fetchLedgerEntries } = useBusinessData("ledger_entries");
+  const { toast } = useToast();
+
+  // Escape hatch for stray/orphaned entries (e.g. left over from an old flow
+  // that no longer exists) that have no page of their own to be deleted from.
+  const deleteEntry = async (row: any) => {
+    if (row.__total) return;
+    if (!confirm(`Delete this ledger entry?\n\n"${row.description}"\n\nThis only removes the ledger row — it does not touch any linked sale/purchase record. This cannot be undone.`)) return;
+    const { error } = await (supabase.from("ledger_entries") as any).delete().eq("id", row.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Ledger entry deleted" });
+    fetchLedgerEntries();
+  };
   const { data: customers } = useBusinessData("customers");
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: karigars } = useBusinessData("karigars");
@@ -216,7 +230,7 @@ const Ledger = () => {
               </Select>
               <Card>
                 <CardContent className="pt-4">
-                  <DataTable columns={columnsFor(type)} data={withTotalRow(type === activeTab ? activeEntries : calcRunningBalance(entriesFor(type)))} />
+                  <DataTable columns={columnsFor(type)} data={withTotalRow(type === activeTab ? activeEntries : calcRunningBalance(entriesFor(type)))} onDelete={deleteEntry} />
                 </CardContent>
               </Card>
             </TabsContent>
