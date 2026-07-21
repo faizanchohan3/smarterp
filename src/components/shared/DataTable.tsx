@@ -1,6 +1,7 @@
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ShoppingBag } from "lucide-react";
+import { Pencil, Trash2, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Column {
   key: string;
@@ -18,10 +19,20 @@ interface DataTableProps {
   totals?: Record<string, React.ReactNode>;
   totalsLabel?: string;
   rowClassName?: (row: any) => string;
+  pageSize?: number;
 }
 
-const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total", rowClassName }: DataTableProps) => {
+const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total", rowClassName, pageSize }: DataTableProps) => {
   const hasActions = onEdit || onDelete || onSell;
+  const [page, setPage] = useState(1);
+  const totalPages = pageSize ? Math.max(1, Math.ceil(data.length / pageSize)) : 1;
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  const pageData = pageSize ? data.slice((page - 1) * pageSize, page * pageSize) : data;
+
   return (
     <div className="rounded-lg border bg-card">
       <Table>
@@ -34,14 +45,14 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.length === 0 ? (
+          {pageData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length + (hasActions ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                 No data found
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row, i) => (
+            pageData.map((row, i) => (
               <TableRow key={row.id || i} className={`${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} ${rowClassName ? rowClassName(row) : ""}`} onClick={() => onRowClick?.(row)}>
                 {columns.map((col) => (
                   <TableCell key={col.key}>
@@ -86,6 +97,22 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
           </tfoot>
         )}
       </Table>
+      {pageSize && data.length > pageSize && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t text-sm">
+          <span className="text-muted-foreground text-xs">
+            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.length)} of {data.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

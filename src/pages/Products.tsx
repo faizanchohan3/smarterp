@@ -182,6 +182,7 @@ const Products = () => {
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
           rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "opacity-50 bg-muted/40 line-through-none" : ""}
+          pageSize={20}
         />
       </div>
     </AppLayout>
