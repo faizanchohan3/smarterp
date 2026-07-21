@@ -242,16 +242,20 @@ const Sales = () => {
         purity_karat: item.purity_karat || null,
         gross_weight: item.gross_weight || 0,
         net_weight: item.net_weight || 0,
-        cost_weight: item.in_stock !== false ? (Number(item.cost_weight) || 0) : 0,
-        cost_price: item.in_stock === false ? (Number(item.cost_price) || 0) : 0,
+        cost_weight: Number(item.cost_weight) || 0,
+        cost_price: item.in_stock === false && Number(item.cost_weight) > 0
+          ? (Number(item.cost_weight) / TOLA_IN_GRAMS) * (parseFloat(tolaRate) || 0)
+          : 0,
       }))
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
 
-    // Handle drop-ship items (not in stock)
-    const dropShipItems = items.filter(item => !item.in_stock && item.supplier_id && item.cost_price);
+    // Handle drop-ship items (not in stock) — cost comes from Cost Weight (g) x gold rate
+    const saleRate = parseFloat(tolaRate) || 0;
+    const dropShipItems = items.filter(item => !item.in_stock && item.supplier_id && Number(item.cost_weight) > 0);
     for (const dropShipItem of dropShipItems) {
-      const costTotal = (dropShipItem.cost_price || 0) * (parseFloat(String(dropShipItem.quantity)) || 1);
+      const unitCostPrice = saleRate > 0 ? (Number(dropShipItem.cost_weight) / TOLA_IN_GRAMS) * saleRate : 0;
+      const costTotal = unitCostPrice * (parseFloat(String(dropShipItem.quantity)) || 1);
 
       // Create purchase record from supplier
       const { data: purchase, error: purchaseErr } = await (supabase.from("purchases") as any).insert({
@@ -272,7 +276,7 @@ const Sales = () => {
           product_id: dropShipItem.product_id || null,
           product_name: dropShipItem.product_name,
           quantity: parseFloat(String(dropShipItem.quantity)) || 0,
-          unit_price: dropShipItem.cost_price,
+          unit_price: unitCostPrice,
           total: costTotal,
         });
 
@@ -597,16 +601,23 @@ const Sales = () => {
                                 </Select>
                                 <Input
                                   type="number"
-                                  step="0.01"
-                                  placeholder="Cost Price (PKR)"
+                                  step="0.0001"
+                                  placeholder="Cost Weight (g)"
                                   className="h-8"
-                                  value={item.cost_price || ""}
-                                  onChange={e => updateItem(i, "cost_price", parseFloat(e.target.value) || 0)}
+                                  value={item.cost_weight || ""}
+                                  onChange={e => updateItem(i, "cost_weight", parseFloat(e.target.value) || 0)}
                                 />
                               </div>
-                              <p className="text-xs text-amber-800">
-                                💰 Profit: {formatCurrency((item.total || 0) - ((item.cost_price || 0) * (item.quantity || 1)))}
-                              </p>
+                              {rate > 0 && Number(item.cost_weight) > 0 && (
+                                <p className="text-xs text-amber-800">
+                                  Supplier Cost: {formatCurrency((Number(item.cost_weight) / TOLA_IN_GRAMS) * rate * (item.quantity || 1))}
+                                </p>
+                              )}
+                              {rate > 0 && Number(item.cost_weight) > 0 && (
+                                <p className="text-xs text-success font-medium">
+                                  💰 Profit: {formatCurrency((item.total || 0) - ((Number(item.cost_weight) / TOLA_IN_GRAMS) * rate * (item.quantity || 1)))}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
