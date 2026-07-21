@@ -213,7 +213,7 @@ const Purchases = () => {
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (purchase: any) => {
-    if (!confirm("Delete this purchase record?")) return;
+    if (!confirm("Delete this purchase record? This removes the stock it added and its ledger entries.")) return;
     const { data: purchaseItems } = await (supabase.from("purchase_items") as any)
       .select("*").eq("purchase_id", purchase.id);
     if (purchaseItems) {
@@ -228,8 +228,22 @@ const Purchases = () => {
         }
       }
     }
+
+    // Remove the ledger entries this purchase created. Supplier-source purchases
+    // and their payment both reference the invoice number in their description;
+    // customer-source purchases instead tag the debit entry as "CUST_PURCHASE:<id>".
+    await (supabase.from("ledger_entries") as any)
+      .delete()
+      .eq("business_id", businessId)
+      .ilike("description", `%${purchase.invoice_number}%`);
+    await (supabase.from("ledger_entries") as any)
+      .delete()
+      .eq("business_id", businessId)
+      .eq("description", `CUST_PURCHASE:${purchase.id}`);
+
+    // purchase_items and payments cascade-delete with the purchase automatically
     await (supabase.from("purchases") as any).delete().eq("id", purchase.id);
-    toast({ title: "Purchase deleted" });
+    toast({ title: "Purchase deleted", description: "Stock and ledger entries reversed." });
     fetchPurchases();
     fetchExpenses();
   };
