@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import StatCard from "@/components/shared/StatCard";
@@ -10,17 +11,20 @@ import ReportHeader from "@/components/shared/ReportHeader";
 import ReportFooter from "@/components/shared/ReportFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/currency";
-import { ArrowUpCircle, Receipt, Wallet, Printer, Coins } from "lucide-react";
+import { ArrowUpCircle, Receipt, Wallet, Printer, Coins, Trash2 } from "lucide-react";
 import { TOLA_TO_GRAM, getLatestRate } from "@/lib/gold";
 
 const ReportPayables = () => {
   const navigate = useNavigate();
-  const { data: purchases } = useBusinessData("purchases");
+  const { data: purchases, fetch: fetchPurchases } = useBusinessData("purchases");
   const { data: suppliers } = useBusinessData("suppliers");
   const { data: goldRates } = useBusinessData("gold_rates" as any);
   const { businessId } = useAuth();
+  const { toast } = useToast();
   const [goldBySupplier, setGoldBySupplier] = useState<Record<string, number>>({});
+  const [viewSupplier, setViewSupplier] = useState<any>(null);
 
   // Drop-ship debts are owed in GOLD (Cost Weight), not a frozen PKR price —
   // the real balance lives on the supplier ledger's gold_credit/gold_debit, not
@@ -64,6 +68,29 @@ const ReportPayables = () => {
   const totalGoldPayable = supplierPayables.reduce((s, c) => s + c.gold_payable, 0);
   const totalPayable = totalCashRemaining + totalGoldPayable;
 
+  const purchasesForSupplier = (supplierId: string) => purchases.filter((p: any) => p.supplier_id === supplierId);
+
+  const deletePurchase = async (purchase: any) => {
+    if (!confirm(`Delete purchase ${purchase.invoice_number} (${formatCurrency(purchase.total_amount)})? This restores stock and removes its ledger entries.`)) return;
+    const { data: purchaseItems } = await (supabase.from("purchase_items") as any).select("*").eq("purchase_id", purchase.id);
+    for (const item of purchaseItems || []) {
+      if (item.product_id) {
+        const { data: prod } = await (supabase.from("products").select("stock_quantity") as any).eq("id", item.product_id).maybeSingle();
+        if (prod) {
+          await (supabase.from("products") as any)
+            .update({ stock_quantity: Math.max(0, Number(prod.stock_quantity) - Number(item.quantity || 0)) })
+            .eq("id", item.product_id);
+        }
+      }
+    }
+    await (supabase.from("ledger_entries") as any).delete().eq("business_id", businessId).ilike("description", `%${purchase.invoice_number}%`);
+    await (supabase.from("ledger_entries") as any).delete().eq("business_id", businessId).eq("description", `CUST_PURCHASE:${purchase.id}`);
+    const { error } = await (supabase.from("purchases") as any).delete().eq("id", purchase.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Purchase deleted" });
+    fetchPurchases();
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in print-receipt-only">
@@ -97,7 +124,13 @@ const ReportPayables = () => {
                 </button>
               )},
               { key: "phone", label: "Phone" },
-              { key: "remaining", label: "Cash Owed", render: (v: number) => formatCurrency(v) },
+              { key: "remaining", label: "Cash Owed", render: (v: number, row: any) => (
+                v > 0 ? (
+                  <button type="button" className="text-primary hover:underline underline-offset-2" onClick={() => setViewSupplier(row)}>
+                    {formatCurrency(v)}
+                  </button>
+                ) : formatCurrency(v)
+              )},
               { key: "gold_owed", label: "Gold Owed (g)", render: (v: number) => v > 0 ? v.toFixed(3) : "-" },
               { key: "gold_payable", label: "Gold Payable (today)", render: (v: number) => v > 0 ? formatCurrency(v) : "-" },
               { key: "grand_total", label: "Total Owed", render: (v: number) => (
@@ -115,6 +148,41 @@ const ReportPayables = () => {
           </CardContent>
         </Card>
         <ReportFooter />
+
+        {/* Raw purchase rows behind a supplier's Cash Owed figure — screen only */}
+        <Dialog open={!!viewSupplier} onOpenChange={(o) => !o && setViewSupplier(null)}>
+          <DialogContent className="max-w-lg print:hidden">
+            <DialogHeader><DialogTitle>Purchases — {viewSupplier?.name}</DialogTitle></DialogHeader>
+            {viewSupplier && (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-muted/50">
+                    <th className="text-left p-2.5">Invoice</th>
+                    <th className="text-left p-2.5">Date</th>
+                    <th className="text-right p-2.5">Total</th>
+                    <th className="text-right p-2.5">Paid</th>
+                    <th className="p-2.5"></th>
+                  </tr></thead>
+                  <tbody>
+                    {purchasesForSupplier(viewSupplier.id).map((p: any) => (
+                      <tr key={p.id} className="border-t">
+                        <td className="p-2.5 font-medium">{p.invoice_number}</td>
+                        <td className="p-2.5">{new Date(p.created_at).toLocaleDateString()}</td>
+                        <td className="p-2.5 text-right">{formatCurrency(p.total_amount)}</td>
+                        <td className="p-2.5 text-right">{formatCurrency(p.paid_amount)}</td>
+                        <td className="p-2.5 text-right">
+                          <Button variant="ghost" size="icon" onClick={() => deletePurchase(p)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
