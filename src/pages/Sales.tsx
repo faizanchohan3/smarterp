@@ -250,53 +250,26 @@ const Sales = () => {
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
 
-    // Handle drop-ship items (not in stock) — cost comes from Cost Weight (g) x gold rate
-    const saleRate = parseFloat(tolaRate) || 0;
+    // Handle drop-ship items (not in stock) — what we owe the supplier is GOLD
+    // (Cost Weight), not a fixed PKR price frozen at today's rate. It's tracked
+    // purely as a gold balance on the supplier ledger; Payables values it live
+    // using the current gold rate (Cost Weight x current rate), so price moves
+    // between now and settlement don't get baked in as a wrong debt.
     const dropShipItems = items.filter(item => !item.in_stock && item.supplier_id && Number(item.cost_weight) > 0);
     for (const dropShipItem of dropShipItems) {
-      const unitCostPrice = saleRate > 0 ? (Number(dropShipItem.cost_weight) / TOLA_IN_GRAMS) * saleRate : 0;
-      const costTotal = unitCostPrice * (parseFloat(String(dropShipItem.quantity)) || 1);
+      const costWeightGrams = (Number(dropShipItem.cost_weight) || 0) * (parseFloat(String(dropShipItem.quantity)) || 1);
 
-      // Create purchase record from supplier
-      const { data: purchase, error: purchaseErr } = await (supabase.from("purchases") as any).insert({
+      await (supabase.from("ledger_entries") as any).insert({
         business_id: businessId,
-        supplier_id: dropShipItem.supplier_id,
-        invoice_number: `PUR-${Date.now().toString(36).toUpperCase()}`,
-        total_amount: costTotal,
-        discount: 0,
-        final_amount: costTotal,
-        paid_amount: 0,
-        payment_status: "unpaid",
-      }).select().single();
-
-      if (!purchaseErr && purchase) {
-        // Create purchase item
-        await (supabase.from("purchase_items") as any).insert({
-          purchase_id: purchase.id,
-          product_id: dropShipItem.product_id || null,
-          product_name: dropShipItem.product_name,
-          quantity: parseFloat(String(dropShipItem.quantity)) || 0,
-          unit_price: unitCostPrice,
-          total: costTotal,
-        });
-
-        // Credit supplier ledger: we owe them the cost (money) AND the gold —
-        // both denominated by Cost Weight (what the supplier actually gave/is owed for),
-        // never the customer-facing gross weight of the item.
-        const costWeightGrams = (Number(dropShipItem.cost_weight) || 0) * (parseFloat(String(dropShipItem.quantity)) || 1);
-
-        await (supabase.from("ledger_entries") as any).insert({
-          business_id: businessId,
-          entry_type: "supplier",
-          reference_id: dropShipItem.supplier_id,
-          description: `Drop-ship: ${dropShipItem.product_name} (${costWeightGrams.toFixed(3)}g cost weight) - ${invoiceNumber}`,
-          debit: 0,
-          credit: costTotal,
-          gold_debit: 0,
-          gold_credit: costWeightGrams,
-          balance: 0,
-        });
-      }
+        entry_type: "supplier",
+        reference_id: dropShipItem.supplier_id,
+        description: `Drop-ship: ${dropShipItem.product_name} (${costWeightGrams.toFixed(3)}g gold owed) - ${invoiceNumber}`,
+        debit: 0,
+        credit: 0,
+        gold_debit: 0,
+        gold_credit: costWeightGrams,
+        balance: 0,
+      });
     }
 
     // Handle regular items (in stock)
@@ -610,7 +583,8 @@ const Sales = () => {
                               </div>
                               {rate > 0 && Number(item.cost_weight) > 0 && (
                                 <p className="text-xs text-amber-800">
-                                  Supplier Cost: {formatCurrency((Number(item.cost_weight) / TOLA_IN_GRAMS) * rate * (item.quantity || 1))}
+                                  Owed to supplier: {(Number(item.cost_weight) * (item.quantity || 1)).toFixed(3)}g gold
+                                  <span className="text-amber-600"> (≈ {formatCurrency((Number(item.cost_weight) / TOLA_IN_GRAMS) * rate * (item.quantity || 1))} at today's rate, for reference only)</span>
                                 </p>
                               )}
                               {rate > 0 && Number(item.cost_weight) > 0 && (
