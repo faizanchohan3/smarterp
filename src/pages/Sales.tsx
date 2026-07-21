@@ -246,6 +246,7 @@ const Sales = () => {
         cost_price: item.in_stock === false && Number(item.cost_weight) > 0
           ? (Number(item.cost_weight) / TOLA_IN_GRAMS) * (parseFloat(tolaRate) || 0)
           : 0,
+        in_stock: item.in_stock !== false,
       }))
     );
     if (itemErr) { toast({ title: "Error saving items", description: itemErr.message, variant: "destructive" }); return; }
@@ -306,6 +307,40 @@ const Sales = () => {
     setPaidAmount("");
     setTolaRate("");
     setRepaymentDate("");
+    fetchSales();
+  };
+
+  // Deleting a sale must undo everything it caused: give back stock for items
+  // that were sold from own inventory, and remove the ledger entries it created
+  // (customer debit/payment, any later repayments, and supplier gold-owed entries
+  // for drop-ship items) — all of them reference the invoice number in their
+  // description, so that's how we find them again.
+  const deleteSale = async (sale: any) => {
+    if (!window.confirm(`Delete invoice ${sale.invoice_number}? This restores stock and removes its ledger entries. This cannot be undone.`)) return;
+
+    const { data: saleItemRows } = await (supabase.from("sale_items").select("*") as any).eq("sale_id", sale.id);
+
+    for (const item of saleItemRows || []) {
+      if (item.product_id && item.in_stock !== false) {
+        const { data: prod } = await (supabase.from("products").select("stock_quantity") as any).eq("id", item.product_id).maybeSingle();
+        if (prod) {
+          await (supabase.from("products") as any).update({
+            stock_quantity: Number(prod.stock_quantity) + Number(item.quantity || 0),
+          }).eq("id", item.product_id);
+        }
+      }
+    }
+
+    await (supabase.from("ledger_entries") as any)
+      .delete()
+      .eq("business_id", businessId)
+      .ilike("description", `%${sale.invoice_number}%`);
+
+    // sale_items and payments cascade-delete with the sale automatically
+    const { error } = await (supabase.from("sales") as any).delete().eq("id", sale.id);
+    if (error) { toast({ title: "Error deleting sale", description: error.message, variant: "destructive" }); return; }
+
+    toast({ title: "Sale deleted", description: "Stock restored and ledger entries removed." });
     fetchSales();
   };
 
@@ -659,6 +694,7 @@ const Sales = () => {
           columns={columns}
           data={salesWithStatus}
           onRowClick={(row) => navigate(`/sales/${row.id}`)}
+          onDelete={deleteSale}
         />
       </div>
     </AppLayout>

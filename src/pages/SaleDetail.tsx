@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import { ArrowLeft, Printer, MessageSquare, Wallet } from "lucide-react";
+import { ArrowLeft, Printer, MessageSquare, Wallet, Trash2 } from "lucide-react";
 import QRCode from "qrcode";
 
 const TOLA_IN_GRAMS = 11.664;
@@ -147,6 +147,37 @@ const SaleDetail = () => {
     setPayments(payData || []);
   };
 
+  // Undo everything this sale caused: restore stock for own-inventory items,
+  // and remove every ledger entry it created (sale debit, payments, repayments,
+  // supplier gold-owed for drop-ship items) — all reference the invoice number.
+  const deleteSale = async () => {
+    if (!sale) return;
+    if (!window.confirm(`Delete invoice ${sale.invoice_number}? This restores stock and removes its ledger entries. This cannot be undone.`)) return;
+
+    for (const item of items) {
+      if (item.product_id && item.in_stock !== false) {
+        const { data: prod } = await (supabase.from("products").select("stock_quantity") as any).eq("id", item.product_id).maybeSingle();
+        if (prod) {
+          await (supabase.from("products") as any).update({
+            stock_quantity: Number(prod.stock_quantity) + Number(item.quantity || 0),
+          }).eq("id", item.product_id);
+        }
+      }
+    }
+
+    await (supabase.from("ledger_entries") as any)
+      .delete()
+      .eq("business_id", businessId)
+      .ilike("description", `%${sale.invoice_number}%`);
+
+    // sale_items and payments cascade-delete with the sale automatically
+    const { error } = await (supabase.from("sales") as any).delete().eq("id", sale.id);
+    if (error) { toast({ title: "Error deleting sale", description: error.message, variant: "destructive" }); return; }
+
+    toast({ title: "Sale deleted", description: "Stock restored and ledger entries removed." });
+    navigate("/sales");
+  };
+
   if (!sale) {
     return (
       <AppLayout>
@@ -224,6 +255,9 @@ const SaleDetail = () => {
             )}
             <Button onClick={() => setNoteDialogOpen(true)} className="gap-2">
               <Printer className="w-4 h-4" /> Print Invoice
+            </Button>
+            <Button variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={deleteSale}>
+              <Trash2 className="w-4 h-4" /> Delete
             </Button>
           </div>
         </div>

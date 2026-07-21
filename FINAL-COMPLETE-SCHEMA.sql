@@ -237,6 +237,7 @@ CREATE TABLE public.sale_items (
   net_weight NUMERIC(12,4),
   cost_weight NUMERIC(12,4),
   cost_price NUMERIC(12,2),
+  in_stock BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
