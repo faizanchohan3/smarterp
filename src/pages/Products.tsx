@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/currency";
-import { Plus } from "lucide-react";
+import { Plus, Printer } from "lucide-react";
 import { KARAT_TABLE, fineWeight } from "@/lib/gold";
 
 const Products = () => {
@@ -18,10 +18,13 @@ const Products = () => {
   const { data: categories } = useBusinessData("categories");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [form, setForm] = useState({
     name: "", category_id: "", price: "", weight_value: "", weight_unit: "gram", stock_quantity: "", image_url: "",
     purity_karat: "", gross_weight: "", net_weight: "", serial_number: "", cost_weight: "",
   });
+
+  const filteredData = categoryFilter === "all" ? data : data.filter((p: any) => p.category_id === categoryFilter);
 
   const generateSerial = () => `SN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
@@ -96,13 +99,24 @@ const Products = () => {
   return (
     <AppLayout>
       <div className="space-y-4 animate-fade-in">
-        <div className="flex items-center justify-between">
+        <div className="print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h1 className="text-2xl font-bold">Products</h1>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => { setEditing(null); resetForm(); setForm(f => ({ ...f, serial_number: generateSerial() })); setOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Add Product</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-44 text-sm"><SelectValue placeholder="Filter by Category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
+              <Printer className="w-4 h-4" /> Print
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => { setEditing(null); resetForm(); setForm(f => ({ ...f, serial_number: generateSerial() })); setOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Add Product</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing ? "Edit" : "Add"} Product</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Image */}
@@ -174,11 +188,12 @@ const Products = () => {
                 <Button type="submit" className="w-full mt-4">{editing ? "Update" : "Create"} Product</Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
         <DataTable
           columns={columns}
-          data={data}
+          data={filteredData}
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
           rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "opacity-50 bg-muted/40 line-through-none" : ""}

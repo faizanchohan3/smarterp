@@ -31,7 +31,8 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
     if (page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
-  const pageData = pageSize ? data.slice((page - 1) * pageSize, page * pageSize) : data;
+  const pageStart = (page - 1) * (pageSize || 0);
+  const pageEnd = page * (pageSize || 0);
 
   return (
     <div className="rounded-lg border bg-card">
@@ -45,15 +46,24 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pageData.length === 0 ? (
+          {data.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length + (hasActions ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                 No data found
               </TableCell>
             </TableRow>
           ) : (
-            pageData.map((row, i) => (
-              <TableRow key={row.id || i} className={`${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} ${rowClassName ? rowClassName(row) : ""}`} onClick={() => onRowClick?.(row)}>
+            data.map((row, i) => {
+              // Pagination only hides rows on screen — a print stylesheet rule (.pg-row)
+              // forces every row visible again when printing, so print always includes all data.
+              const onCurrentPage = !pageSize || (i >= pageStart && i < pageEnd);
+              return (
+              <TableRow
+                key={row.id || i}
+                className={`${pageSize ? "pg-row" : ""} ${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""} ${rowClassName ? rowClassName(row) : ""}`}
+                style={pageSize && !onCurrentPage ? { display: "none" } : undefined}
+                onClick={() => onRowClick?.(row)}
+              >
                 {columns.map((col) => (
                   <TableCell key={col.key}>
                     {col.render ? col.render(row[col.key], row) : row[col.key] ?? "-"}
@@ -81,7 +91,8 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
                   </TableCell>
                 )}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
         {totals && data.length > 0 && (
@@ -98,7 +109,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
         )}
       </Table>
       {pageSize && data.length > pageSize && (
-        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t text-sm">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t text-sm print:hidden">
           <span className="text-muted-foreground text-xs">
             Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.length)} of {data.length}
           </span>

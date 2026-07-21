@@ -164,6 +164,10 @@
   }
   tbody tr:nth-child(even) td { background: #ffffff !important; }
   tbody tr:nth-child(odd) td { background: #ffffff !important; }
+
+  /* Pagination hides off-page rows with an inline style for screen viewing —
+     force them all visible when printing so the printout includes every row. */
+  .pg-row { display: table-row !important; }
 }
 
 
