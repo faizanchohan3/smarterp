@@ -2,6 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+// Detect Supabase/PostgREST "JWT expired" errors specifically, as opposed
+// to a genuine query error — shared across the app so every data hook can
+// recover the same way instead of surfacing a raw cryptic toast.
+export const isJwtExpired = (err: any) =>
+  !!err && (err.code === "PGRST301" || /jwt/i.test(err.message || ""));
+
 type AppRole = "super_admin" | "business_admin" | "staff";
 
 interface AuthContextType {
@@ -38,22 +44,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopPhone, setShopPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = async (userId: string) => {
-    const { data: roles } = await supabase
+  const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
+    const { data: roles, error: rolesErr } = await supabase
       .from("user_roles")
       .select("role, business_id")
       .eq("user_id", userId);
+
+    if (rolesErr) {
+      if (isJwtExpired(rolesErr) && !alreadyRetried) {
+        const { error: refreshErr } = await supabase.auth.refreshSession();
+        if (!refreshErr) return fetchUserData(userId, true);
+      }
+      // Token truly dead (refresh failed too) or a transient network error —
+      // either way, don't wipe good state with a false "pending" render.
+      // A hard sign-out forces a clean re-login instead of a stuck/wrong page.
+      if (isJwtExpired(rolesErr)) await supabase.auth.signOut();
+      return;
+    }
 
     if (roles && roles.length > 0) {
       setRole(roles[0].role as AppRole);
       setBusinessId(roles[0].business_id);
 
       if (roles[0].business_id) {
-        const { data: biz } = await (supabase
+        const { data: biz, error: bizErr } = await (supabase
           .from("businesses")
           .select("status, shop_name, owner_name, logo_url, address, phone") as any)
           .eq("id", roles[0].business_id)
           .maybeSingle();
+
+        if (bizErr) {
+          if (isJwtExpired(bizErr) && !alreadyRetried) {
+            const { error: refreshErr } = await supabase.auth.refreshSession();
+            if (!refreshErr) return fetchUserData(userId, true);
+          }
+          if (isJwtExpired(bizErr)) await supabase.auth.signOut();
+          return;
+        }
+
         setBusinessStatus(biz?.status || null);
         setShopName(biz?.shop_name || null);
         setOwnerName(biz?.owner_name || null);
@@ -62,10 +90,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopPhone(biz?.phone || null);
       }
     } else {
-      const { data: biz } = await (supabase
+      const { data: biz, error: bizErr } = await (supabase
         .from("businesses")
         .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
         .eq("user_id", userId);
+
+      if (bizErr) {
+        if (isJwtExpired(bizErr) && !alreadyRetried) {
+          const { error: refreshErr } = await supabase.auth.refreshSession();
+          if (!refreshErr) return fetchUserData(userId, true);
+        }
+        if (isJwtExpired(bizErr)) await supabase.auth.signOut();
+        return;
+      }
 
       if (biz && biz.length > 0) {
         setBusinessId(biz[0].id);
