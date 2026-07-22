@@ -159,19 +159,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // A single source of truth for session state. supabase-js v2 fires this
+    // listener immediately on subscribe with the current session (event
+    // INITIAL_SESSION) and again on every subsequent change (SIGNED_IN,
+    // TOKEN_REFRESHED, SIGNED_OUT, ...) — there is no need for a separate
+    // supabase.auth.getSession() call. Previously this file had BOTH, racing
+    // independently to set session/user and call fetchUserData: depending on
+    // microtask/macrotask timing, the getSession() path's setLoading(false)
+    // could win the race and land before fetchUserData had actually resolved
+    // role/businessStatus, rendering Pending Approval (or a 404) with blank
+    // state even for a genuinely approved account — intermittently, since it
+    // depended on timing, not on any real data problem.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Show the loading spinner (not stale/blank role state) until the
-        // freshly logged-in user's role & business status are fetched —
-        // otherwise the app briefly renders "Pending Approval" or a 404
-        // using leftover state from before login.
         setLoading(true);
-        setTimeout(async () => {
-          await fetchUserData(session.user.id);
-          setLoading(false);
-        }, 0);
+        await fetchUserData(session.user.id);
+        setLoading(false);
       } else {
         setRole(null);
         setBusinessId(null);
@@ -184,15 +189,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopWhatsappQr(null);
         setLoading(false);
       }
-    });
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
-      }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
