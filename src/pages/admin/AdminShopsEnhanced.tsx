@@ -89,7 +89,10 @@ const AdminShopsEnhanced = () => {
   };
 
   const deleteShop = async (shopId: string, shopName: string) => {
-    if (!confirm(`Are you sure you want to delete ${shopName}? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete ${shopName}? This permanently erases ALL its data — products, sales, customers, ledger, everything. This action cannot be undone.`)) {
+      return;
+    }
+    if (!confirm(`Please confirm again: permanently delete "${shopName}" and all its data? There is no way to recover it after this.`)) {
       return;
     }
 
