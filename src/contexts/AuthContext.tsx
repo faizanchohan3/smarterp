@@ -8,13 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 export const isJwtExpired = (err: any) =>
   !!err && (err.code === "PGRST301" || /jwt/i.test(err.message || ""));
 
-// A column referenced in code but missing on the live database (e.g. a
-// migration that was never run) must never be allowed to silently break
-// login — that failure mode is invisible (no error shown anywhere) and
-// looks exactly like "Pending Approval" for a perfectly approved account.
-const isMissingColumn = (err: any) =>
-  !!err && (err.code === "42703" || /column .* does not exist/i.test(err.message || ""));
-
 type AppRole = "super_admin" | "business_admin" | "staff";
 
 interface AuthContextType {
@@ -93,20 +86,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let biz: any = null;
 
       if (businessIds.length > 0) {
-        let { data: bizList, error: bizErr } = await (supabase
+        const { data: bizList, error: bizErr } = await (supabase
           .from("businesses")
-          .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
+          .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
           .in("id", businessIds);
-
-        if (bizErr && isMissingColumn(bizErr)) {
-          console.error("businesses query failed on a missing column (likely an unrun migration) — retrying without it:", bizErr.message);
-          const retry = await (supabase
-            .from("businesses")
-            .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
-            .in("id", businessIds);
-          bizList = retry.data;
-          bizErr = retry.error;
-        }
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -114,7 +97,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!refreshErr) return fetchUserData(userId, true);
           }
           if (isJwtExpired(bizErr)) await supabase.auth.signOut();
-          console.error("Failed to load business data during login:", bizErr.message);
           return;
         }
 
@@ -132,23 +114,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(biz?.logo_url || null);
         setShopAddress(biz?.address || null);
         setShopPhone(biz?.phone || null);
-        setShopWhatsappQr(biz?.whatsapp_qr_url || null);
+        fetchWhatsappQr(chosenRole.business_id);
       }
     } else {
-      let { data: biz, error: bizErr } = await (supabase
+      const { data: biz, error: bizErr } = await (supabase
         .from("businesses")
-        .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
+        .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
         .eq("user_id", userId);
-
-      if (bizErr && isMissingColumn(bizErr)) {
-        console.error("businesses query failed on a missing column (likely an unrun migration) — retrying without it:", bizErr.message);
-        const retry = await (supabase
-          .from("businesses")
-          .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
-          .eq("user_id", userId);
-        biz = retry.data;
-        bizErr = retry.error;
-      }
 
       if (bizErr) {
         if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -156,7 +128,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!refreshErr) return fetchUserData(userId, true);
         }
         if (isJwtExpired(bizErr)) await supabase.auth.signOut();
-        console.error("Failed to load business data during login:", bizErr.message);
         return;
       }
 
@@ -168,10 +139,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(biz[0].logo_url || null);
         setShopAddress(biz[0].address || null);
         setShopPhone(biz[0].phone || null);
-        setShopWhatsappQr(biz[0].whatsapp_qr_url || null);
         setRole("business_admin");
+        fetchWhatsappQr(biz[0].id);
       }
     }
+  };
+
+  // Kept entirely separate from the core login query: this column was added
+  // after core login already worked, and a business that hasn't run its
+  // migration must never be able to block or slow down login. Fire-and-forget,
+  // never touches loading state, fails silently.
+  const fetchWhatsappQr = async (bizId: string) => {
+    const { data, error } = await (supabase.from("businesses").select("whatsapp_qr_url") as any)
+      .eq("id", bizId)
+      .maybeSingle();
+    // error (e.g. the column doesn't exist yet on this deployment) just
+    // means no QR to show — never surfaced, never retried, never blocks login
+    if (!error) setShopWhatsappQr(data?.whatsapp_qr_url || null);
   };
 
   const refreshBusiness = async (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null; shopWhatsappQr?: string | null }) => {
