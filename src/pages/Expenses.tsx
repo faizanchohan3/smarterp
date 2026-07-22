@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
@@ -7,19 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/currency";
+import { postAccountEntries } from "@/lib/accounting";
 import { Plus } from "lucide-react";
 
 const expenseCategories = ["Rent", "Utilities", "Salary", "Transport", "Office Supplies", "Misc"];
 
 const Expenses = () => {
   const { data, create, remove } = useBusinessData("expenses");
+  const { businessId } = useAuth();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ category: "", description: "", amount: "", date: new Date().toISOString().split("T")[0] });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await create({ ...form, amount: parseFloat(form.amount) || 0 });
-    if (ok) { setOpen(false); setForm({ category: "", description: "", amount: "", date: new Date().toISOString().split("T")[0] }); }
+    const amount = parseFloat(form.amount) || 0;
+    const ok = await create({ ...form, amount });
+    if (ok) {
+      // Chart of Accounts: expense paid out of Cash
+      if (businessId) {
+        postAccountEntries(businessId, `${form.category}${form.description ? `: ${form.description}` : ""}`, [
+          { account: "MISC_EXPENSE", debit: amount },
+          { account: "CASH", credit: amount },
+        ]);
+      }
+      setOpen(false); setForm({ category: "", description: "", amount: "", date: new Date().toISOString().split("T")[0] });
+    }
   };
 
   const totalExpenses = data.reduce((sum: number, e: any) => sum + Number(e.amount), 0);

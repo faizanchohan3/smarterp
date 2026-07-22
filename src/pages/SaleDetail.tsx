@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
+import { postAccountEntries } from "@/lib/accounting";
 import { ArrowLeft, Printer, MessageSquare, Wallet, Trash2 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -170,6 +171,12 @@ const SaleDetail = () => {
         balance: newBalance,
       });
     }
+
+    // Chart of Accounts: cash comes in, receivable goes down by the same amount
+    postAccountEntries(businessId, `Repayment for ${sale.invoice_number}`, [
+      { account: "CASH", debit: amt },
+      { account: "RECEIVABLE", credit: amt },
+    ]);
 
     toast({ title: "Repayment recorded" });
     setRepayOpen(false);

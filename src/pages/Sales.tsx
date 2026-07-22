@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/currency";
 import { Plus, Trash2, Printer, ShoppingCart, Wallet, ArrowDownCircle, Scan } from "lucide-react";
 import StatCard from "@/components/shared/StatCard";
 import { TOLA_TO_GRAM, RATTI_PER_GRAM, fineWeight, getLatestRate, formatRateTime } from "@/lib/gold";
+import { postAccountEntries } from "@/lib/accounting";
 
 const TOLA_IN_GRAMS = TOLA_TO_GRAM;
 const RATTI_IN_GRAMS = RATTI_PER_GRAM;
@@ -308,6 +309,14 @@ const Sales = () => {
         }
       }
     }
+
+    // Chart of Accounts postings: Cash for whatever was paid now, Accounts
+    // Receivable for the rest, both against Gold Jewellery Sales revenue.
+    postAccountEntries(businessId, `Sale ${invoiceNumber}`, [
+      { account: "CASH", debit: paid },
+      { account: "RECEIVABLE", debit: finalAmount - paid },
+      { account: "GOLD_SALES", credit: finalAmount },
+    ]);
 
     toast({ title: "Sale created successfully" });
     setOpen(false);

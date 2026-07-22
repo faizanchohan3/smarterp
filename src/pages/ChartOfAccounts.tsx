@@ -117,29 +117,40 @@ const ChartOfAccounts = () => {
   const { toast } = useToast();
   const seeded = useRef(false);
 
+  // Skip codes that already exist instead of checking "is the table empty":
+  // a handful of leaf accounts (Cash, Accounts Receivable, etc.) may already
+  // have been auto-created by Sales/Purchases/Expenses posting to the Chart
+  // of Accounts before this page was ever opened. Re-seeding on a blanket
+  // "table not empty" check would skip the other ~50 defaults entirely.
   useEffect(() => {
-    if (loading || !businessId || data.length > 0 || seeded.current) return;
+    if (loading || !businessId || seeded.current) return;
+    const fullySeeded = data.some((a: any) => a.code === "1000");
+    if (fullySeeded) return;
     seeded.current = true;
     (async () => {
       toast({ title: "Setting up accounts", description: "Creating default chart of accounts..." });
+      const existingCodes = new Map(data.map((a: any) => [a.code, a.id]));
       for (const group of DEFAULT_ACCOUNTS) {
-        const { data: parentRows, error: parentErr } = await (supabase.from("chart_of_accounts") as any)
-          .insert({ code: group.code, name: group.name, type: group.type, description: group.description, business_id: businessId })
-          .select("id");
-        if (parentErr || !parentRows?.[0]) continue;
-        const parentId = parentRows[0].id;
-        if (group.children?.length) {
-          const children = group.children.map(c => ({
+        let parentId = existingCodes.get(group.code) as string | undefined;
+        if (!parentId) {
+          const { data: parentRows, error: parentErr } = await (supabase.from("chart_of_accounts") as any)
+            .insert({ code: group.code, name: group.name, type: group.type, description: group.description, business_id: businessId })
+            .select("id");
+          if (parentErr || !parentRows?.[0]) continue;
+          parentId = parentRows[0].id;
+        }
+        const missingChildren = (group.children || []).filter(c => !existingCodes.has(c.code));
+        if (missingChildren.length) {
+          await (supabase.from("chart_of_accounts") as any).insert(missingChildren.map(c => ({
             code: c.code, name: c.name, type: group.type, description: c.description,
             parent_id: parentId, business_id: businessId,
-          }));
-          await (supabase.from("chart_of_accounts") as any).insert(children);
+          })));
         }
       }
-      toast({ title: "Chart of Accounts ready", description: "55 default accounts created for your jewellery business." });
+      toast({ title: "Chart of Accounts ready", description: "Default accounts created for your jewellery business." });
       await refetch();
     })();
-  }, [loading, businessId, data.length]);
+  }, [loading, businessId, data]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [code, setCode] = useState("");

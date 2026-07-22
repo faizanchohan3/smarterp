@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
+import { postAccountEntries } from "@/lib/accounting";
 import { Plus, Trash2, Package, Archive } from "lucide-react";
 
 const Purchases = () => {
@@ -159,6 +160,15 @@ const Purchases = () => {
         });
       }
     }
+
+    // Chart of Accounts: cost of goods acquired, against whatever was paid
+    // now (Cash) and whatever's still owed (Accounts Payable) — same shape
+    // whether the item came from a supplier or a customer trade-in.
+    postAccountEntries(businessId, `Purchase ${invoiceNumber}`, [
+      { account: "GOLD_PURCHASE", debit: totalAmount },
+      { account: "CASH", credit: paid },
+      { account: "PAYABLE", credit: totalAmount - paid },
+    ]);
 
     setPendingPurchaseId(purchase.id);
     setPendingItems([...items]);
