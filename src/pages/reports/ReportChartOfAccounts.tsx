@@ -4,11 +4,13 @@ import AppLayout from "@/components/layout/AppLayout";
 import ReportHeader from "@/components/shared/ReportHeader";
 import ReportFooter from "@/components/shared/ReportFooter";
 import StatCard from "@/components/shared/StatCard";
+import DataTable from "@/components/shared/DataTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/currency";
-import { Printer, Landmark, Scale } from "lucide-react";
+import { Printer, Landmark, Scale, Wallet } from "lucide-react";
 
 // Normal-balance sign convention: Assets & Expenses grow with debit;
 // Liabilities, Equity & Revenue grow with credit.
@@ -24,6 +26,7 @@ const ReportChartOfAccounts = () => {
   const { data: ledgerEntries } = useBusinessData("ledger_entries");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState("all");
 
   const accountLedger = ledgerEntries.filter((e: any) => e.entry_type === "account");
   const filtered = accountLedger.filter((e: any) => {
@@ -32,6 +35,27 @@ const ReportChartOfAccounts = () => {
     if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
     return true;
   });
+
+  const sortedAccounts = [...accounts].sort((a: any, b: any) => String(a.code).localeCompare(String(b.code)));
+  const activeAccount = accounts.find((a: any) => a.id === selectedAccount);
+
+  // Single-account view: full transaction history with a running balance,
+  // like Ledger's per-party detail view.
+  const accountEntries = selectedAccount === "all" ? [] : filtered.filter((e: any) => e.account_id === selectedAccount);
+  const accountRows = (() => {
+    if (!activeAccount) return [];
+    let balance = 0;
+    const debitNormal = DEBIT_NORMAL.includes(activeAccount.type);
+    return [...accountEntries].reverse().map((e: any) => {
+      balance += debitNormal ? Number(e.debit || 0) - Number(e.credit || 0) : Number(e.credit || 0) - Number(e.debit || 0);
+      return { ...e, running_balance: balance };
+    }).reverse();
+  })();
+  const accountTotalDebit = accountEntries.reduce((s: number, e: any) => s + Number(e.debit || 0), 0);
+  const accountTotalCredit = accountEntries.reduce((s: number, e: any) => s + Number(e.credit || 0), 0);
+  const accountBalance = activeAccount
+    ? (DEBIT_NORMAL.includes(activeAccount.type) ? accountTotalDebit - accountTotalCredit : accountTotalCredit - accountTotalDebit)
+    : 0;
 
   const balanceFor = (accountId: string, type: string) => {
     const entries = filtered.filter((e: any) => e.account_id === accountId);
@@ -68,7 +92,16 @@ const ReportChartOfAccounts = () => {
             <h1 className="text-2xl font-bold">Chart of Accounts Report</h1>
             <p className="text-sm text-muted-foreground">Balances per account (trial balance)</p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+              <SelectTrigger className="w-56 h-9 text-sm bg-card"><SelectValue placeholder="All Accounts" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Accounts</SelectItem>
+                {sortedAccounts.map((a: any) => (
+                  <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex gap-2 items-center bg-card border rounded-lg px-3 py-2">
               <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-auto h-8 text-sm border-0 p-0 focus-visible:ring-0" />
               <span className="text-muted-foreground text-xs">→</span>
@@ -83,6 +116,30 @@ const ReportChartOfAccounts = () => {
           </div>
         </div>
 
+        {activeAccount ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <StatCard title="Total Debit" value={formatCurrency(accountTotalDebit)} icon={Wallet} />
+              <StatCard title="Total Credit" value={formatCurrency(accountTotalCredit)} icon={Wallet} />
+              <StatCard title="Balance" value={formatCurrency(Math.abs(accountBalance))} subtitle={accountBalance >= 0 ? "Normal balance" : "Negative"} icon={Scale} trend={accountBalance >= 0 ? "up" : "down"} />
+            </div>
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">{activeAccount.code} - {activeAccount.name}</CardTitle></CardHeader>
+              <CardContent>
+                <DataTable columns={[
+                  { key: "created_at", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
+                  { key: "description", label: "Description" },
+                  { key: "debit", label: "Debit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
+                  { key: "credit", label: "Credit", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
+                  { key: "running_balance", label: "Balance", render: (v: number) => (
+                    <span className={v < 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.abs(v))}</span>
+                  )},
+                ]} data={accountRows} />
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+        <>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard title="Total Assets" value={formatCurrency(totalAssets)} icon={Landmark} gradient="blue" />
           <StatCard title="Total Liabilities" value={formatCurrency(totalLiabilities)} icon={Landmark} gradient="red" />
@@ -144,6 +201,8 @@ const ReportChartOfAccounts = () => {
             <span className="font-semibold">{formatCurrency(totalCredits)}</span>
           </CardContent>
         </Card>
+        </>
+        )}
 
         <ReportFooter />
       </div>
