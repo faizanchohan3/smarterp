@@ -377,7 +377,7 @@ const SaleDetail = () => {
                     <th className="text-left p-3 font-medium">Particulars</th>
                     <th className="text-right p-3 font-medium">Weight (g)</th>
                     <th className="text-right p-3 font-medium">Rate/gram</th>
-                    <th className="text-right p-3 font-medium">Making</th>
+                    <th className="text-right p-3 font-medium">Making (g)</th>
                     <th className="text-right p-3 font-medium">Amount</th>
                   </tr>
                 </thead>
@@ -405,7 +405,7 @@ const SaleDetail = () => {
                         </td>
                         <td className="p-3 text-right">{wg > 0 ? wg.toFixed(3) : "—"}</td>
                         <td className="p-3 text-right">{rpg > 0 ? rpg.toFixed(2) : "—"}</td>
-                        <td className="p-3 text-right">{mc > 0 ? formatCurrency(mc) : "—"}</td>
+                        <td className="p-3 text-right">{mc > 0 && rpg > 0 ? (mc / rpg).toFixed(3) : "—"}</td>
                         <td className="p-3 text-right font-medium">{formatCurrency(item.total)}</td>
                       </tr>
                     );
@@ -548,8 +548,7 @@ const SaleDetail = () => {
                       <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "left" }}>Product Name</th>
                       <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "78px" }}>Weight (g)</th>
                       <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "center", width: "80px" }}>Rate/Gram</th>
-                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "95px" }}>Gold Value</th>
-                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "85px" }}>Making</th>
+                      <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "85px" }}>Making (g)</th>
                       <th style={{ border: "1px solid #7a1a1a", padding: "7px 8px", textAlign: "right", width: "105px" }}>Total (PKR)</th>
                     </tr>
                   </thead>
@@ -568,17 +567,14 @@ const SaleDetail = () => {
                         </td>
                         <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", backgroundColor: "#fff" }}>{wg > 0 ? wg.toFixed(3) : "-"}</td>
                         <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", backgroundColor: "#fff" }}>{ratePerGram > 0 ? ratePerGram.toFixed(2) : "-"}</td>
-                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", backgroundColor: "#fff" }}>
-                          {wg > 0 && ratePerGram > 0 ? (wg * ratePerGram).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}
-                        </td>
-                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", backgroundColor: "#fff" }}>{mc > 0 ? mc.toLocaleString() : "-"}</td>
+                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", backgroundColor: "#fff" }}>{mc > 0 && ratePerGram > 0 ? (mc / ratePerGram).toFixed(3) : "-"}</td>
                         <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right", fontWeight: 700, backgroundColor: "#fff" }}>{Number(item.total) > 0 ? Number(item.total).toLocaleString() : ""}</td>
                       </tr>
                     ))}
                     {/* Note row — spans all columns */}
                     {printNote && (
                       <tr>
-                        <td colSpan={7} style={{ border: "1px solid #ccc", padding: "8px 12px", fontSize: "11px", color: "#444", fontStyle: "italic", backgroundColor: "#fff" }}>
+                        <td colSpan={6} style={{ border: "1px solid #ccc", padding: "8px 12px", fontSize: "11px", color: "#444", fontStyle: "italic", backgroundColor: "#fff" }}>
                           <strong style={{ fontStyle: "normal" }}>Note: </strong>{printNote}
                         </td>
                       </tr>
@@ -599,8 +595,8 @@ const SaleDetail = () => {
                               <td style={{ border: "1px solid #ccc", padding: "6px 10px", textAlign: "right", fontWeight: "600" }}>{totalWeightG.toFixed(3)}</td>
                             </tr>
                             <tr>
-                              <td style={{ border: "1px solid #ccc", padding: "6px 10px" }}>Total Making Charges</td>
-                              <td style={{ border: "1px solid #ccc", padding: "6px 10px", textAlign: "right", fontWeight: "600" }}>{totalMaking > 0 ? totalMaking.toLocaleString() : "0.00"}</td>
+                              <td style={{ border: "1px solid #ccc", padding: "6px 10px" }}>Total Making (g)</td>
+                              <td style={{ border: "1px solid #ccc", padding: "6px 10px", textAlign: "right", fontWeight: "600" }}>{totalMaking > 0 && ratePerGram > 0 ? (totalMaking / ratePerGram).toFixed(3) : "0.000"}</td>
                             </tr>
                             {Number(sale.discount) > 0 && (
                               <tr>

@@ -53,6 +53,26 @@ const ReportSales = () => {
     return "unpaid";
   };
 
+  const RATTI_PER_G = 8;
+  // Making charges are stored on sale_items as a PKR amount (already
+  // converted at sale time, whatever unit the cashier typed it in) — shown
+  // here converted back to gold weight using that sale's own gold rate,
+  // never as PKR.
+  const rows = filtered.map((s: any) => {
+    const its = itemsBySale[s.id] || [];
+    const ratePerGram = Number(s.tola_rate) > 0 ? Number(s.tola_rate) / 11.664 : 0;
+    const totalWg = its.reduce((sum: number, it: any) => {
+      const wg = it.weight_unit === "ratti" ? Number(it.weight) / RATTI_PER_G : Number(it.weight);
+      return sum + wg;
+    }, 0);
+    const totalMakingG = ratePerGram > 0
+      ? its.reduce((sum: number, it: any) => sum + (Number(it.polish_waste || 0) / ratePerGram), 0)
+      : 0;
+    return { sale: s, its, ratePerGram, totalWg, totalMakingG };
+  });
+  const grandTotalWeight = rows.reduce((s, r) => s + r.totalWg, 0);
+  const grandTotalMakingG = rows.reduce((s, r) => s + r.totalMakingG, 0);
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -96,11 +116,9 @@ const ReportSales = () => {
                   }, 0);
                   return total > 0 ? <span className="font-medium">{total.toFixed(3)}</span> : <span className="text-muted-foreground">—</span>;
                 }},
-                { key: "id", label: "Making", render: (_: any, row: any) => {
-                  const its = itemsBySale[row.id] || [];
-                  const total = its.reduce((s: number, it: any) =>
-                    s + (it.polish_unit === "pkr" ? Number(it.polish_waste || 0) : 0), 0);
-                  return total > 0 ? formatCurrency(total) : <span className="text-muted-foreground">—</span>;
+                { key: "id", label: "Making (g)", render: (_: any, row: any) => {
+                  const totalG = rows.find(r => r.sale.id === row.id)?.totalMakingG || 0;
+                  return totalG > 0 ? <span className="font-medium">{totalG.toFixed(3)}</span> : <span className="text-muted-foreground">—</span>;
                 }},
                 { key: "final_amount", label: "Amount", render: (v: number) => formatCurrency(v) },
                 { key: "paid_amount", label: "Paid", render: (v: number) => formatCurrency(v) },
@@ -195,7 +213,7 @@ const ReportSales = () => {
                   <th className="p-2 text-left">Customer</th>
                   <th className="p-2 text-left">Particulars</th>
                   <th className="p-2 text-center">Wt (g)</th>
-                  <th className="p-2 text-right">Making</th>
+                  <th className="p-2 text-right">Making (g)</th>
                   <th className="p-2 text-left">Date</th>
                   <th className="p-2 text-right">Amount</th>
                   <th className="p-2 text-right">Paid</th>
@@ -204,19 +222,11 @@ const ReportSales = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {rows.length === 0 ? (
                   <tr><td colSpan={11} className="text-center p-4 text-muted-foreground">No sales found</td></tr>
-                ) : filtered.map((s: any, i: number) => {
+                ) : rows.map(({ sale: s, its, ratePerGram, totalWg, totalMakingG }, i: number) => {
                   const rem = Number(s.final_amount) - Number(s.paid_amount);
                   const cleared = rem <= 0;
-                  const its = itemsBySale[s.id] || [];
-                  const RATTI_PER_G = 8;
-                  const totalWg = its.reduce((sum: number, it: any) => {
-                    const wg = it.weight_unit === "ratti" ? Number(it.weight) / RATTI_PER_G : Number(it.weight);
-                    return sum + wg;
-                  }, 0);
-                  const totalMc = its.reduce((sum: number, it: any) =>
-                    sum + (it.polish_unit === "pkr" ? Number(it.polish_waste || 0) : 0), 0);
                   return (
                     <tr key={s.id} style={{ background: i % 2 === 0 ? "#fff" : "#fdecea" }}>
                       <td className="p-2 border-t" style={{ borderColor: "#f1b7b1" }}>{i + 1}</td>
@@ -233,8 +243,8 @@ const ReportSales = () => {
                                   ? (Number(it.weight) / RATTI_PER_G).toFixed(3)
                                   : Number(it.weight).toFixed(3)}g</span>
                               )}
-                              {it.polish_unit === "pkr" && Number(it.polish_waste) > 0 && (
-                                <span className="text-gray-500"> · Mkng: {Number(it.polish_waste).toLocaleString()}</span>
+                              {ratePerGram > 0 && Number(it.polish_waste) > 0 && (
+                                <span className="text-gray-500"> · Mkng: {(Number(it.polish_waste) / ratePerGram).toFixed(3)}g</span>
                               )}
                             </div>
                           ))}
@@ -244,7 +254,7 @@ const ReportSales = () => {
                         {totalWg > 0 ? totalWg.toFixed(3) : "—"}
                       </td>
                       <td className="p-2 border-t text-right" style={{ borderColor: "#f1b7b1" }}>
-                        {totalMc > 0 ? totalMc.toLocaleString() : "—"}
+                        {totalMakingG > 0 ? totalMakingG.toFixed(3) : "—"}
                       </td>
                       <td className="p-2 border-t" style={{ borderColor: "#f1b7b1" }}>{new Date(s.created_at).toLocaleDateString()}</td>
                       <td className="p-2 border-t text-right" style={{ borderColor: "#f1b7b1" }}>{formatCurrency(s.final_amount)}</td>
@@ -259,14 +269,10 @@ const ReportSales = () => {
                 <tr style={{ background: "#fdecea", fontWeight: 700 }}>
                   <td colSpan={4} className="p-2 text-right" style={{ borderTop: "2px solid #c0392b", color: "#c0392b" }}>TOTALS</td>
                   <td className="p-2 text-center" style={{ borderTop: "2px solid #c0392b" }}>
-                    {Object.values(itemsBySale).flat().reduce((sum: number, it: any) => {
-                      const wg = it.weight_unit === "ratti" ? Number(it.weight) / 8 : Number(it.weight);
-                      return sum + wg;
-                    }, 0).toFixed(3)}g
+                    {grandTotalWeight.toFixed(3)}g
                   </td>
                   <td className="p-2 text-right" style={{ borderTop: "2px solid #c0392b" }}>
-                    {Object.values(itemsBySale).flat().reduce((sum: number, it: any) =>
-                      sum + (it.polish_unit === "pkr" ? Number(it.polish_waste || 0) : 0), 0).toLocaleString()}
+                    {grandTotalMakingG.toFixed(3)}g
                   </td>
                   <td className="p-2" style={{ borderTop: "2px solid #c0392b" }}></td>
                   <td className="p-2 text-right" style={{ borderTop: "2px solid #c0392b" }}>{formatCurrency(totalAmount)}</td>
