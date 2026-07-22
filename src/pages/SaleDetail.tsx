@@ -81,6 +81,41 @@ const SaleDetail = () => {
     fetchAll();
   }, [id]);
 
+  // Safety net: the customer ledger entry is created alongside the sale, but if
+  // that insert ever silently failed, the sale would still look correct here
+  // while the customer's ledger just never shows the receivable. Detect that gap
+  // and offer a one-click repair instead of leaving it invisible.
+  const [ledgerMissing, setLedgerMissing] = useState(false);
+  useEffect(() => {
+    if (!sale?.customer_id || !businessId) { setLedgerMissing(false); return; }
+    (async () => {
+      const { data } = await (supabase.from("ledger_entries").select("id") as any)
+        .eq("business_id", businessId)
+        .eq("entry_type", "customer")
+        .eq("reference_id", sale.customer_id)
+        .ilike("description", `%${sale.invoice_number}%`)
+        .limit(1);
+      setLedgerMissing(!data || data.length === 0);
+    })();
+  }, [sale?.id, sale?.customer_id, businessId]);
+
+  const repairLedgerEntry = async () => {
+    if (!sale?.customer_id || !businessId) return;
+    const { error } = await (supabase.from("ledger_entries") as any).insert({
+      business_id: businessId, entry_type: "customer", reference_id: sale.customer_id,
+      description: `Sale ${sale.invoice_number}`, debit: Number(sale.final_amount), credit: 0, balance: 0,
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (Number(sale.paid_amount) > 0) {
+      await (supabase.from("ledger_entries") as any).insert({
+        business_id: businessId, entry_type: "customer", reference_id: sale.customer_id,
+        description: `Payment for ${sale.invoice_number}`, debit: 0, credit: Number(sale.paid_amount), balance: 0,
+      });
+    }
+    toast({ title: "Ledger entry added" });
+    setLedgerMissing(false);
+  };
+
   useEffect(() => {
     if (sale && qrCanvasRef.current) {
       QRCode.toCanvas(qrCanvasRef.current, sale.invoice_number, { width: 120, margin: 2 }).catch(() => {});
@@ -198,6 +233,15 @@ const SaleDetail = () => {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <ReportHeader title={`Invoice ${sale.invoice_number}`} subtitle={`Sales Invoice - ${new Date(sale.created_at).toLocaleDateString()}`} />
+
+        {ledgerMissing && (
+          <div className="print:hidden rounded-lg border border-destructive/40 bg-destructive/5 p-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-destructive">
+              ⚠️ Is sale ki entry <strong>customer ke ledger mein missing hai</strong> — receivable amount track nahi ho raha.
+            </p>
+            <Button size="sm" variant="destructive" onClick={repairLedgerEntry}>Ledger Mein Add Karo</Button>
+          </div>
+        )}
 
         <div className="flex items-center justify-between print:hidden">
           <div className="flex items-center gap-4">

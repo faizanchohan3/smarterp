@@ -285,17 +285,24 @@ const Sales = () => {
       }
     }
 
-    // Customer ledger entry
+    // Customer ledger entry — if this silently fails, the sale would look fine
+    // everywhere but the customer's ledger would just never show the receivable,
+    // so surface any error instead of swallowing it.
     if (actualCustomerId) {
-      await (supabase.from("ledger_entries") as any).insert({
+      const { error: ledgerErr } = await (supabase.from("ledger_entries") as any).insert({
         business_id: businessId, entry_type: "customer", reference_id: actualCustomerId,
         description: `Sale ${invoiceNumber}`, debit: finalAmount, credit: 0, balance: 0,
       });
-      if (paid > 0) {
-        await (supabase.from("ledger_entries") as any).insert({
+      if (ledgerErr) {
+        toast({ title: "Sale saved, but ledger entry failed", description: `${ledgerErr.message} — open the invoice and use "Ledger Mein Add Karo" to fix.`, variant: "destructive" });
+      } else if (paid > 0) {
+        const { error: payLedgerErr } = await (supabase.from("ledger_entries") as any).insert({
           business_id: businessId, entry_type: "customer", reference_id: actualCustomerId,
           description: `Payment for ${invoiceNumber}`, debit: 0, credit: paid, balance: 0,
         });
+        if (payLedgerErr) {
+          toast({ title: "Payment ledger entry failed", description: payLedgerErr.message, variant: "destructive" });
+        }
       }
     }
 
