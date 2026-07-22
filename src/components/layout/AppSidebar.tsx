@@ -49,6 +49,7 @@ const reportMenuItems = [
   { label: "Customers", icon: Users, path: "/reports/customers" },
   { label: "Suppliers", icon: Truck, path: "/reports/suppliers" },
   { label: "Salaries", icon: ClipboardList, path: "/reports/salaries" },
+  { label: "Chart of Accounts", icon: FileSpreadsheet, path: "/reports/chart-of-accounts" },
 ];
 
 const adminMenuItems = [

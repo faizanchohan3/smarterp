@@ -40,6 +40,7 @@ import ReportInventory from "./pages/reports/ReportInventory";
 import ReportCustomers from "./pages/reports/ReportCustomers";
 import ReportSuppliers from "./pages/reports/ReportSuppliers";
 import ReportSalaries from "./pages/reports/ReportSalaries";
+import ReportChartOfAccounts from "./pages/reports/ReportChartOfAccounts";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminShopsEnhanced from "./pages/admin/AdminShopsEnhanced";
 import AdminUsersEnhanced from "./pages/admin/AdminUsersEnhanced";
@@ -126,6 +127,7 @@ const AppRoutes = () => {
       <Route path="/reports/customers" element={<ReportCustomers />} />
       <Route path="/reports/suppliers" element={<ReportSuppliers />} />
       <Route path="/reports/salaries" element={<ReportSalaries />} />
+      <Route path="/reports/chart-of-accounts" element={<ReportChartOfAccounts />} />
       <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
       <Route path="/karigars" element={<Karigars />} />
       <Route path="/karigars/:id" element={<KarigarDetail />} />
