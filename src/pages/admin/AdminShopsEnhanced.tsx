@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Edit2, Key } from "lucide-react";
+import { Trash2, Edit2, Key, RefreshCw } from "lucide-react";
 import { adminResetPassword } from "@/lib/adminApi";
 
 const AdminShopsEnhanced = () => {
@@ -109,6 +109,34 @@ const AdminShopsEnhanced = () => {
     fetchShops();
   };
 
+  // Rebuilds this shop's login link from the businesses row itself (the one
+  // source of truth Admin > Shops reads from) rather than trusting whatever
+  // is currently in user_roles — fixes accounts stuck on Pending Approval
+  // even though the shop shows Approved here, caused by a stale/duplicate or
+  // mis-pointed user_roles row.
+  const fixLogin = async (shop: any) => {
+    if (!shop.user_id) {
+      toast({ title: "No login linked to this shop", description: "This shop has no user_id — nothing to fix.", variant: "destructive" });
+      return;
+    }
+    if (!confirm(`Rebuild the login link for "${shop.shop_name}"? This clears any duplicate/broken role rows for this account and relinks it to this exact shop.`)) return;
+
+    const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", shop.user_id);
+    if (delErr) { toast({ title: "Error", description: delErr.message, variant: "destructive" }); return; }
+
+    const { error: insErr } = await supabase.from("user_roles").insert({
+      user_id: shop.user_id,
+      business_id: shop.id,
+      role: "business_admin",
+    });
+    if (insErr) { toast({ title: "Error", description: insErr.message, variant: "destructive" }); return; }
+
+    // profiles.business_id is also read in a couple of places — keep it in sync too
+    await supabase.from("profiles").update({ business_id: shop.id }).eq("user_id", shop.user_id);
+
+    toast({ title: "Login link fixed", description: "Ask them to log out and log back in." });
+  };
+
   const openEdit = (shop: any) => {
     setSelectedShop(shop);
     setEditForm({
@@ -154,6 +182,15 @@ const AdminShopsEnhanced = () => {
             onClick={(e) => { e.stopPropagation(); setSelectedShop(row); setNewPassword(""); setPasswordOpen(true); }}
           >
             <Key className="w-4 h-4" /> Password
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!row.user_id}
+            title="Fixes accounts stuck on Pending Approval even though this shop is Approved"
+            onClick={(e) => { e.stopPropagation(); fixLogin(row); }}
+          >
+            <RefreshCw className="w-4 h-4" /> Fix Login
           </Button>
           {row.status !== "approved" && (
             <Button size="sm" onClick={(e) => { e.stopPropagation(); updateStatus(row.id, "approved"); }}>
