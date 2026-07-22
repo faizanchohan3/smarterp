@@ -21,13 +21,12 @@ interface AuthContextType {
   shopLogo: string | null;
   shopAddress: string | null;
   shopPhone: string | null;
-  shopWhatsappQr: string | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, shopName: string, ownerName: string, phone: string, logoUrl?: string, address?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  refreshBusiness: (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null; shopWhatsappQr?: string | null }) => Promise<void>;
+  refreshBusiness: (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopLogo, setShopLogo] = useState<string | null>(null);
   const [shopAddress, setShopAddress] = useState<string | null>(null);
   const [shopPhone, setShopPhone] = useState<string | null>(null);
-  const [shopWhatsappQr, setShopWhatsappQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
@@ -65,31 +63,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (roles && roles.length > 0) {
-      // Super admin is a platform-level role with no business of its own — it
-      // must NEVER be routed through the pending/approved business flow, no
-      // matter what other (possibly stale) user_roles rows exist for this user.
-      const superAdminRole = roles.find((r: any) => r.role === "super_admin");
-      if (superAdminRole) {
-        setRole("super_admin");
-        setBusinessId(null);
-        setBusinessStatus(null);
-        return;
-      }
+      setRole(roles[0].role as AppRole);
+      setBusinessId(roles[0].business_id);
 
-      // user_roles has no uniqueness guarantee on user_id — if stale/duplicate
-      // rows exist, an unordered query can non-deterministically return a
-      // different row on different loads, so a genuinely approved account can
-      // randomly render Pending Approval. Resolve deterministically: when
-      // there's more than one candidate business, prefer whichever is approved.
-      const businessIds = [...new Set(roles.map((r: any) => r.business_id).filter(Boolean))];
-      let chosenRole = roles[0];
-      let biz: any = null;
-
-      if (businessIds.length > 0) {
-        const { data: bizList, error: bizErr } = await (supabase
+      if (roles[0].business_id) {
+        const { data: biz, error: bizErr } = await (supabase
           .from("businesses")
-          .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
-          .in("id", businessIds);
+          .select("status, shop_name, owner_name, logo_url, address, phone") as any)
+          .eq("id", roles[0].business_id)
+          .maybeSingle();
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -100,21 +82,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        biz = (bizList || []).find((b: any) => b.status === "approved") || bizList?.[0] || null;
-        chosenRole = roles.find((r: any) => r.business_id === biz?.id) || roles[0];
-      }
-
-      setRole(chosenRole.role as AppRole);
-      setBusinessId(chosenRole.business_id);
-
-      if (chosenRole.business_id) {
         setBusinessStatus(biz?.status || null);
         setShopName(biz?.shop_name || null);
         setOwnerName(biz?.owner_name || null);
         setShopLogo(biz?.logo_url || null);
         setShopAddress(biz?.address || null);
         setShopPhone(biz?.phone || null);
-        fetchWhatsappQr(chosenRole.business_id);
       }
     } else {
       const { data: biz, error: bizErr } = await (supabase
@@ -140,56 +113,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopAddress(biz[0].address || null);
         setShopPhone(biz[0].phone || null);
         setRole("business_admin");
-        fetchWhatsappQr(biz[0].id);
       }
     }
   };
 
-  // Kept entirely separate from the core login query: this column was added
-  // after core login already worked, and a business that hasn't run its
-  // migration must never be able to block or slow down login. Fire-and-forget,
-  // never touches loading state, fails silently.
-  const fetchWhatsappQr = async (bizId: string) => {
-    const { data, error } = await (supabase.from("businesses").select("whatsapp_qr_url") as any)
-      .eq("id", bizId)
-      .maybeSingle();
-    // error (e.g. the column doesn't exist yet on this deployment) just
-    // means no QR to show — never surfaced, never retried, never blocks login
-    if (!error) setShopWhatsappQr(data?.whatsapp_qr_url || null);
-  };
-
-  const refreshBusiness = async (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null; shopWhatsappQr?: string | null }) => {
+  const refreshBusiness = async (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null }) => {
     if (patch) {
       if (patch.shopName   !== undefined) setShopName(patch.shopName);
       if (patch.ownerName  !== undefined) setOwnerName(patch.ownerName);
       if (patch.shopLogo   !== undefined) setShopLogo(patch.shopLogo);
       if (patch.shopAddress !== undefined) setShopAddress(patch.shopAddress);
       if (patch.shopPhone  !== undefined) setShopPhone(patch.shopPhone);
-      if (patch.shopWhatsappQr !== undefined) setShopWhatsappQr(patch.shopWhatsappQr);
     } else {
       if (user) await fetchUserData(user.id);
     }
   };
 
   useEffect(() => {
-    // A single source of truth for session state. supabase-js v2 fires this
-    // listener immediately on subscribe with the current session (event
-    // INITIAL_SESSION) and again on every subsequent change (SIGNED_IN,
-    // TOKEN_REFRESHED, SIGNED_OUT, ...) — there is no need for a separate
-    // supabase.auth.getSession() call. Previously this file had BOTH, racing
-    // independently to set session/user and call fetchUserData: depending on
-    // microtask/macrotask timing, the getSession() path's setLoading(false)
-    // could win the race and land before fetchUserData had actually resolved
-    // role/businessStatus, rendering Pending Approval (or a 404) with blank
-    // state even for a genuinely approved account — intermittently, since it
-    // depended on timing, not on any real data problem.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Show the loading spinner (not stale/blank role state) until the
+        // freshly logged-in user's role & business status are fetched —
+        // otherwise the app briefly renders "Pending Approval" or a 404
+        // using leftover state from before login.
         setLoading(true);
-        await fetchUserData(session.user.id);
-        setLoading(false);
+        setTimeout(async () => {
+          await fetchUserData(session.user.id);
+          setLoading(false);
+        }, 0);
       } else {
         setRole(null);
         setBusinessId(null);
@@ -199,9 +152,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(null);
         setShopAddress(null);
         setShopPhone(null);
-        setShopWhatsappQr(null);
         setLoading(false);
       }
+    });
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -273,11 +234,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setShopLogo(null);
     setShopAddress(null);
     setShopPhone(null);
-    setShopWhatsappQr(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, shopWhatsappQr, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
+    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
       {children}
     </AuthContext.Provider>
   );

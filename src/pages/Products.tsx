@@ -27,7 +27,6 @@ const Products = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
@@ -35,13 +34,7 @@ const Products = () => {
     purity_karat: "", gross_weight: "", net_weight: "", serial_number: "", cost_weight: "",
   });
 
-  const filteredData = data
-    .filter((p: any) => categoryFilter === "all" || p.category_id === categoryFilter)
-    .filter((p: any) => {
-      if (stockFilter === "in") return Number(p.stock_quantity) > 0;
-      if (stockFilter === "sold") return Number(p.stock_quantity) <= 0;
-      return true;
-    });
+  const filteredData = categoryFilter === "all" ? data : data.filter((p: any) => p.category_id === categoryFilter);
 
   const handleExport = () => {
     const rows = filteredData.map((p: any) => [
@@ -203,14 +196,6 @@ const Products = () => {
                 {categories.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={stockFilter} onValueChange={setStockFilter}>
-              <SelectTrigger className="w-40 text-sm"><SelectValue placeholder="Stock Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stock</SelectItem>
-                <SelectItem value="in">In Stock</SelectItem>
-                <SelectItem value="sold">Sold Out</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
             </Button>
@@ -305,7 +290,7 @@ const Products = () => {
           data={filteredData}
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
-          rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-950 dark:text-yellow-100" : ""}
+          rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "opacity-50 bg-muted/40 line-through-none" : ""}
           pageSize={20}
         />
       </div>

@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Edit2, Key, RefreshCw, Stethoscope, Loader2 } from "lucide-react";
-import { adminResetPassword, adminDiagnoseShop, adminRelinkOwner } from "@/lib/adminApi";
+import { Trash2, Edit2, Key } from "lucide-react";
+import { adminResetPassword } from "@/lib/adminApi";
 
 const AdminShopsEnhanced = () => {
   const [shops, setShops] = useState<any[]>([]);
@@ -18,51 +18,7 @@ const AdminShopsEnhanced = () => {
   const [editForm, setEditForm] = useState<any>({});
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const [diagOpen, setDiagOpen] = useState(false);
-  const [diagLoading, setDiagLoading] = useState(false);
-  const [diagData, setDiagData] = useState<any>(null);
-  const [diagShop, setDiagShop] = useState<any>(null);
-  const [relinkEmail, setRelinkEmail] = useState("");
-  const [relinking, setRelinking] = useState(false);
   const { toast } = useToast();
-
-  const openDiagnostics = async (shop: any) => {
-    setDiagShop(shop);
-    setRelinkEmail(shop.login_email !== "-" ? shop.login_email : "");
-    setDiagData(null);
-    setDiagOpen(true);
-    setDiagLoading(true);
-    const { data, error } = await adminDiagnoseShop(shop.id);
-    if (error) {
-      toast({ title: "Error", description: error, variant: "destructive" });
-      setDiagOpen(false);
-    } else {
-      setDiagData(data);
-    }
-    setDiagLoading(false);
-  };
-
-  const rebuildRoleLink = async () => {
-    if (!diagShop?.user_id) return;
-    const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", diagShop.user_id);
-    if (delErr) { toast({ title: "Error", description: delErr.message, variant: "destructive" }); return; }
-    const { error: insErr } = await supabase.from("user_roles").insert({ user_id: diagShop.user_id, business_id: diagShop.id, role: "business_admin" });
-    if (insErr) { toast({ title: "Error", description: insErr.message, variant: "destructive" }); return; }
-    await supabase.from("profiles").update({ business_id: diagShop.id }).eq("user_id", diagShop.user_id);
-    toast({ title: "Role link rebuilt", description: "Ask them to log out and log back in." });
-    openDiagnostics(diagShop);
-  };
-
-  const relinkToEmail = async () => {
-    if (!diagShop || !relinkEmail.trim()) return;
-    setRelinking(true);
-    const { data, error } = await adminRelinkOwner(diagShop.id, relinkEmail.trim());
-    setRelinking(false);
-    if (error) { toast({ title: "Error", description: error, variant: "destructive" }); return; }
-    toast({ title: "Shop relinked", description: `Now linked to ${data.email}. Ask them to log out and log back in.` });
-    fetchShops();
-    openDiagnostics({ ...diagShop, user_id: data.linkedUserId });
-  };
 
   const handleResetPassword = async () => {
     if (!selectedShop?.user_id || !newPassword || newPassword.length < 6) {
@@ -133,10 +89,7 @@ const AdminShopsEnhanced = () => {
   };
 
   const deleteShop = async (shopId: string, shopName: string) => {
-    if (!confirm(`Are you sure you want to delete ${shopName}? This permanently erases ALL its data — products, sales, customers, ledger, everything. This action cannot be undone.`)) {
-      return;
-    }
-    if (!confirm(`Please confirm again: permanently delete "${shopName}" and all its data? There is no way to recover it after this.`)) {
+    if (!confirm(`Are you sure you want to delete ${shopName}? This action cannot be undone.`)) {
       return;
     }
 
@@ -198,14 +151,6 @@ const AdminShopsEnhanced = () => {
             onClick={(e) => { e.stopPropagation(); setSelectedShop(row); setNewPassword(""); setPasswordOpen(true); }}
           >
             <Key className="w-4 h-4" /> Password
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            title="Diagnose and fix accounts stuck on Pending Approval even though this shop is Approved"
-            onClick={(e) => { e.stopPropagation(); openDiagnostics(row); }}
-          >
-            <Stethoscope className="w-4 h-4" /> Fix Login
           </Button>
           {row.status !== "approved" && (
             <Button size="sm" onClick={(e) => { e.stopPropagation(); updateStatus(row.id, "approved"); }}>
@@ -295,58 +240,6 @@ const AdminShopsEnhanced = () => {
                 Reset Password
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Diagnose & fix a stuck login */}
-        <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Fix Login — {diagShop?.shop_name}</DialogTitle>
-            </DialogHeader>
-            {diagLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : diagData ? (
-              <div className="space-y-4 text-sm">
-                <div className="rounded-lg border p-3 space-y-1 bg-muted/30">
-                  <p><strong>Shop status:</strong> {diagData.business.status}</p>
-                  <p><strong>businesses.user_id:</strong> {diagData.business.user_id || "— none —"}</p>
-                  <p>
-                    <strong>Auth account found:</strong>{" "}
-                    {diagData.authUser
-                      ? <span className="text-success">{diagData.authUser.email}</span>
-                      : <span className="text-destructive">No — {diagData.authUserError || "businesses.user_id does not point to a real login"}</span>}
-                  </p>
-                  <p><strong>user_roles rows:</strong> {diagData.userRoles.length}
-                    {diagData.userRoles.length > 1 && <span className="text-destructive"> (duplicates — this is likely the bug)</span>}
-                  </p>
-                  {diagData.userRoles.map((r: any) => (
-                    <p key={r.id} className="text-xs text-muted-foreground pl-3">
-                      role={r.role}, business_id={r.business_id === diagShop?.id ? "this shop ✓" : (r.business_id || "null")}
-                    </p>
-                  ))}
-                </div>
-
-                {diagData.authUser ? (
-                  <Button className="w-full gap-2" onClick={rebuildRoleLink}>
-                    <RefreshCw className="w-4 h-4" /> Rebuild Role Link (clears duplicates)
-                  </Button>
-                ) : (
-                  <div className="space-y-2 border-t pt-3">
-                    <p className="text-xs text-muted-foreground">
-                      No valid login is linked to this shop. Enter the correct login email to relink it to the real account:
-                    </p>
-                    <Input placeholder="owner@email.com" value={relinkEmail} onChange={e => setRelinkEmail(e.target.value)} />
-                    <Button className="w-full gap-2" disabled={relinking || !relinkEmail.trim()} onClick={relinkToEmail}>
-                      {relinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                      Relink to This Email
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : null}
           </DialogContent>
         </Dialog>
 

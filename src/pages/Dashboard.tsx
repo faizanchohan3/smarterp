@@ -40,37 +40,29 @@ const Dashboard = () => {
     if (!businessId) return;
 
     const fetchStats = async () => {
-      // ── Current month window (1st → today). Resets automatically on the 1st. ──
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); sevenDaysAgo.setHours(0, 0, 0, 0);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split("T")[0];
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 2);
-      const cutoffStr = cutoff.toISOString().split("T")[0];
-
-      // Pull only what each figure actually needs instead of every sale/purchase
-      // ever made — receivable/payable only need rows that aren't fully paid off
-      // (payment_status != 'full'), which stays small even as history grows,
-      // and month/chart figures are filtered by date server-side rather than
-      // fetching the whole table and filtering in the browser.
-      const [monthSalesRes, monthPurchasesRes, monthExpensesRes, unpaidSalesRes, unpaidPurchasesRes, dueSoonRes, chartSalesRes] = await Promise.all([
-        supabase.from("sales").select("final_amount").eq("business_id", businessId).gte("created_at", monthStart),
-        supabase.from("purchases").select("total_amount").eq("business_id", businessId).gte("created_at", monthStart),
-        supabase.from("expenses").select("amount").eq("business_id", businessId).gte("created_at", monthStart),
-        supabase.from("sales").select("final_amount, paid_amount").eq("business_id", businessId).neq("payment_status", "full"),
-        supabase.from("purchases").select("total_amount, paid_amount").eq("business_id", businessId).neq("payment_status", "full"),
-        (supabase.from("sales").select("id, invoice_number, final_amount, paid_amount, repayment_date, customers(name)") as any)
-          .eq("business_id", businessId).neq("payment_status", "full")
-          .not("repayment_date", "is", null).gte("repayment_date", todayStr).lte("repayment_date", cutoffStr),
-        supabase.from("sales").select("final_amount, created_at").eq("business_id", businessId).gte("created_at", sevenDaysAgo.toISOString()),
+      const [salesRes, purchasesRes, expensesRes, customersRes] = await Promise.all([
+        supabase.from("sales").select("id, invoice_number, customer_id, final_amount, paid_amount, created_at, repayment_date").eq("business_id", businessId),
+        supabase.from("purchases").select("total_amount, paid_amount, created_at").eq("business_id", businessId),
+        supabase.from("expenses").select("amount, created_at").eq("business_id", businessId),
+        supabase.from("customers").select("id, name").eq("business_id", businessId),
       ]);
 
-      const totalSales = (monthSalesRes.data || []).reduce((sum, s: any) => sum + Number(s.final_amount), 0);
-      const totalPurchases = (monthPurchasesRes.data || []).reduce((sum, p: any) => sum + Number(p.total_amount), 0);
-      const totalExpenses = (monthExpensesRes.data || []).reduce((sum, e: any) => sum + Number(e.amount), 0);
-      const receivable = (unpaidSalesRes.data || []).reduce((sum, s: any) => sum + (Number(s.final_amount) - Number(s.paid_amount)), 0);
-      const payable = (unpaidPurchasesRes.data || []).reduce((sum, p: any) => sum + (Number(p.total_amount) - Number(p.paid_amount)), 0);
+      // ── Current month window (1st → today). Resets automatically on the 1st. ──
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const inThisMonth = (dateStr?: string) => dateStr ? new Date(dateStr) >= monthStart : false;
+
+      const monthSales = (salesRes.data || []).filter((s: any) => inThisMonth(s.created_at));
+      const monthPurchases = (purchasesRes.data || []).filter((p: any) => inThisMonth(p.created_at));
+      const monthExpenses = (expensesRes.data || []).filter((e: any) => inThisMonth(e.created_at));
+
+      const totalSales = monthSales.reduce((sum, s: any) => sum + Number(s.final_amount), 0);
+      const totalPurchases = monthPurchases.reduce((sum, p: any) => sum + Number(p.total_amount), 0);
+      const totalExpenses = monthExpenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
+
+      // Receivable / Payable: FULL all-time totals (not month-limited)
+      const receivable = (salesRes.data?.reduce((sum, s) => sum + (Number(s.final_amount) - Number(s.paid_amount)), 0)) || 0;
+      const payable = (purchasesRes.data?.reduce((sum, p) => sum + (Number(p.total_amount) - Number(p.paid_amount)), 0)) || 0;
 
       setStats({
         sales: totalSales,
@@ -81,9 +73,18 @@ const Dashboard = () => {
         payable,
       });
 
-      const upcoming = (dueSoonRes.data || []).map((s: any) => ({
+      // Repayment due in next 2 days
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 2); cutoff.setHours(23, 59, 59, 999);
+      const upcoming = (salesRes.data || []).filter((s: any) => {
+        if (!s.repayment_date) return false;
+        const rem = Number(s.final_amount) - Number(s.paid_amount);
+        if (rem <= 0) return false;
+        const d = new Date(s.repayment_date);
+        return d >= today && d <= cutoff;
+      }).map((s: any) => ({
         ...s,
-        customer_name: s.customers?.name || "Walk-in",
+        customer_name: customersRes.data?.find((c: any) => c.id === s.customer_id)?.name || "Walk-in",
         remaining: Number(s.final_amount) - Number(s.paid_amount),
       }));
       setDueSoon(upcoming);
@@ -103,7 +104,7 @@ const Dashboard = () => {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split("T")[0];
-        const daySales = chartSalesRes.data?.filter((s: any) => s.created_at?.startsWith(dateStr)).reduce((sum, s: any) => sum + Number(s.final_amount), 0) || 0;
+        const daySales = salesRes.data?.filter(s => (s as any).created_at?.startsWith(dateStr)).reduce((sum, s) => sum + Number(s.final_amount), 0) || 0;
         days.push({ day: d.toLocaleDateString("en", { weekday: "short" }), sales: daySales });
       }
       setChartData(days);

@@ -44,7 +44,7 @@ const amountInWords = (amount: number): string => {
 const SaleDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { shopName, ownerName, shopLogo, shopAddress, shopPhone, shopWhatsappQr, businessId } = useAuth();
+  const { shopName, ownerName, shopLogo, shopAddress, shopPhone, businessId } = useAuth();
   const { data: sales, fetch: refetchSales } = useBusinessData("sales");
   const { data: customers } = useBusinessData("customers");
   const { data: products } = useBusinessData("products");
@@ -351,14 +351,7 @@ const SaleDetail = () => {
                 <h3 className="text-lg font-bold">{sale.invoice_number}</h3>
                 <p className="text-sm text-muted-foreground">{new Date(sale.created_at).toLocaleDateString()}</p>
                 <StatusBadge status={computedStatus} className="mt-2" />
-                {shopWhatsappQr ? (
-                  <div className="mt-3 mx-auto w-[120px]">
-                    <img src={shopWhatsappQr} alt="WhatsApp QR" className="w-[120px] h-[120px] object-contain mx-auto" />
-                    <p className="text-[9px] text-center text-muted-foreground mt-0.5">Scan to WhatsApp us</p>
-                  </div>
-                ) : (
-                  <canvas ref={qrCanvasRef} className="mt-3 mx-auto" />
-                )}
+                <canvas ref={qrCanvasRef} className="mt-3 mx-auto" />
               </div>
             </div>
 
@@ -514,11 +507,7 @@ const SaleDetail = () => {
                 <div><span style={{ fontWeight: "600" }}>Gold Rate: </span>{formatCurrency((sale as any).tola_rate)} / Tola</div>
               )}
               <div><span style={{ fontWeight: "600" }}>Report No: </span>{sale.invoice_number}</div>
-              {shopWhatsappQr ? (
-                <img src={shopWhatsappQr} alt="WhatsApp QR" style={{ marginTop: "12px", width: "110px", height: "110px", objectFit: "contain", marginLeft: "auto", marginRight: 0, display: "block" }} />
-              ) : (
-                <canvas ref={qrCanvasRef} style={{ marginTop: "12px", display: "block", marginLeft: "auto", marginRight: 0 }} />
-              )}
+              <canvas ref={qrCanvasRef} style={{ marginTop: "12px", display: "block", marginLeft: "auto", marginRight: 0 }} />
             </div>
           </div>
 
