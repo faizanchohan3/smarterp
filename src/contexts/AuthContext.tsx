@@ -21,12 +21,13 @@ interface AuthContextType {
   shopLogo: string | null;
   shopAddress: string | null;
   shopPhone: string | null;
+  shopWhatsappQr: string | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, shopName: string, ownerName: string, phone: string, logoUrl?: string, address?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  refreshBusiness: (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null }) => Promise<void>;
+  refreshBusiness: (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null; shopWhatsappQr?: string | null }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopLogo, setShopLogo] = useState<string | null>(null);
   const [shopAddress, setShopAddress] = useState<string | null>(null);
   const [shopPhone, setShopPhone] = useState<string | null>(null);
+  const [shopWhatsappQr, setShopWhatsappQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
@@ -69,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (roles[0].business_id) {
         const { data: biz, error: bizErr } = await (supabase
           .from("businesses")
-          .select("status, shop_name, owner_name, logo_url, address, phone") as any)
+          .select("status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
           .eq("id", roles[0].business_id)
           .maybeSingle();
 
@@ -88,11 +90,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(biz?.logo_url || null);
         setShopAddress(biz?.address || null);
         setShopPhone(biz?.phone || null);
+        setShopWhatsappQr(biz?.whatsapp_qr_url || null);
       }
     } else {
       const { data: biz, error: bizErr } = await (supabase
         .from("businesses")
-        .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
+        .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
         .eq("user_id", userId);
 
       if (bizErr) {
@@ -112,18 +115,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(biz[0].logo_url || null);
         setShopAddress(biz[0].address || null);
         setShopPhone(biz[0].phone || null);
+        setShopWhatsappQr(biz[0].whatsapp_qr_url || null);
         setRole("business_admin");
       }
     }
   };
 
-  const refreshBusiness = async (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null }) => {
+  const refreshBusiness = async (patch?: { shopName?: string; ownerName?: string; shopLogo?: string | null; shopAddress?: string | null; shopPhone?: string | null; shopWhatsappQr?: string | null }) => {
     if (patch) {
       if (patch.shopName   !== undefined) setShopName(patch.shopName);
       if (patch.ownerName  !== undefined) setOwnerName(patch.ownerName);
       if (patch.shopLogo   !== undefined) setShopLogo(patch.shopLogo);
       if (patch.shopAddress !== undefined) setShopAddress(patch.shopAddress);
       if (patch.shopPhone  !== undefined) setShopPhone(patch.shopPhone);
+      if (patch.shopWhatsappQr !== undefined) setShopWhatsappQr(patch.shopWhatsappQr);
     } else {
       if (user) await fetchUserData(user.id);
     }
@@ -152,6 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopLogo(null);
         setShopAddress(null);
         setShopPhone(null);
+        setShopWhatsappQr(null);
         setLoading(false);
       }
     });
@@ -234,10 +240,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setShopLogo(null);
     setShopAddress(null);
     setShopPhone(null);
+    setShopWhatsappQr(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
+    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, shopWhatsappQr, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
       {children}
     </AuthContext.Provider>
   );

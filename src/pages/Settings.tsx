@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Store, User, Phone, MapPin, Image, CheckCircle2, Loader2 } from "lucide-react";
+import { Save, Store, User, Phone, MapPin, Image, CheckCircle2, Loader2, QrCode } from "lucide-react";
 
 const Settings = () => {
   const { businessId, refreshBusiness } = useAuth();
@@ -21,10 +21,12 @@ const Settings = () => {
     phone: "",
     address: "",
     logo_url: "",
+    whatsapp_qr_url: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoSaving, setLogoSaving] = useState(false);
+  const [qrSaving, setQrSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   // Load directly from DB — never trust auth context timing for initial form values
@@ -34,7 +36,7 @@ const Settings = () => {
       setLoading(true);
       const { data } = await (supabase
         .from("businesses")
-        .select("shop_name, owner_name, phone, address, logo_url") as any)
+        .select("shop_name, owner_name, phone, address, logo_url, whatsapp_qr_url") as any)
         .eq("id", businessId)
         .maybeSingle();
       if (data) {
@@ -44,6 +46,7 @@ const Settings = () => {
           phone: data.phone || "",
           address: data.address || "",
           logo_url: data.logo_url || "",
+          whatsapp_qr_url: data.whatsapp_qr_url || "",
         });
       }
       setLoading(false);
@@ -65,7 +68,7 @@ const Settings = () => {
   const reloadFromDb = async () => {
     const { data } = await (supabase
       .from("businesses")
-      .select("shop_name, owner_name, phone, address, logo_url") as any)
+      .select("shop_name, owner_name, phone, address, logo_url, whatsapp_qr_url") as any)
       .eq("id", businessId)
       .maybeSingle();
     return data;
@@ -84,6 +87,33 @@ const Settings = () => {
       toast({ title: "Logo saved and applied" });
     }
     setLogoSaving(false);
+  };
+
+  // Auto-save the WhatsApp QR the moment it's uploaded, same as the logo
+  const handleQrUpload = async (url: string) => {
+    set("whatsapp_qr_url", url);
+    if (!businessId) return;
+    setQrSaving(true);
+    const error = await saveToDb({ whatsapp_qr_url: url });
+    if (error) {
+      toast({ title: "QR save failed", description: error.message, variant: "destructive" });
+    } else {
+      await refreshBusiness({ shopWhatsappQr: url });
+      toast({ title: "WhatsApp QR saved and applied" });
+    }
+    setQrSaving(false);
+  };
+
+  const removeQr = async () => {
+    set("whatsapp_qr_url", "");
+    if (!businessId) return;
+    setQrSaving(true);
+    const error = await saveToDb({ whatsapp_qr_url: null });
+    if (!error) {
+      await refreshBusiness({ shopWhatsappQr: null });
+      toast({ title: "WhatsApp QR removed" });
+    }
+    setQrSaving(false);
   };
 
   const handleSave = async () => {
@@ -118,6 +148,7 @@ const Settings = () => {
         phone: data.phone || "",
         address: data.address || "",
         logo_url: data.logo_url || "",
+        whatsapp_qr_url: data.whatsapp_qr_url || "",
       });
     }
     await refreshBusiness({
@@ -184,6 +215,42 @@ const Settings = () => {
               <p className="text-xs text-muted-foreground">
                 Uploading via the circle auto-saves immediately. Pasting a URL requires clicking Save below.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp QR */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-primary" />
+              WhatsApp QR Code
+              {qrSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground ml-1" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <div className="relative">
+              <ImageUpload
+                currentUrl={form.whatsapp_qr_url}
+                onUpload={handleQrUpload}
+                folder="whatsapp-qr"
+                size="lg"
+              />
+              {qrSaving && (
+                <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Apna WhatsApp QR code (screenshot) upload karo — yeh invoice pe us auto-generated QR ki jagah dikhega, taake customer seedha scan karke tumhe WhatsApp pe message kar sake.
+              </p>
+              {form.whatsapp_qr_url && (
+                <Button type="button" variant="outline" size="sm" onClick={removeQr} disabled={qrSaving}>
+                  Remove QR
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

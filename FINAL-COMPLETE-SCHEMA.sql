@@ -41,6 +41,7 @@ CREATE TABLE public.businesses (
   phone TEXT,
   address TEXT,
   logo_url TEXT,
+  whatsapp_qr_url TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'disabled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
