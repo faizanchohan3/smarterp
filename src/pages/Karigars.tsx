@@ -79,6 +79,7 @@ const Karigars = () => {
           data={data}
           onEdit={openEdit}
           onDelete={(id) => remove(id)}
+          onRowClick={(row) => navigate(`/karigars/${row.id}`)}
         />
       </div>
     </AppLayout>

@@ -13,7 +13,9 @@ import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import CustomerForm from "./pages/CustomerForm";
 import Suppliers from "./pages/Suppliers";
+import SupplierDetail from "./pages/SupplierDetail";
 import Employees from "./pages/Employees";
+import EmployeeDetail from "./pages/EmployeeDetail";
 import Categories from "./pages/Categories";
 import Products from "./pages/Products";
 import Sales from "./pages/Sales";
@@ -46,6 +48,7 @@ import ChartOfAccounts from "./pages/ChartOfAccounts";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Karigars from "./pages/Karigars";
+import KarigarDetail from "./pages/KarigarDetail";
 import Repairs from "./pages/Repairs";
 import CustomOrders from "./pages/CustomOrders";
 import CustomOrderDetail from "./pages/CustomOrderDetail";
@@ -95,7 +98,9 @@ const AppRoutes = () => {
       <Route path="/customers/:id" element={<CustomerDetail />} />
       <Route path="/customers/:id/edit" element={<CustomerForm />} />
       <Route path="/suppliers" element={<Suppliers />} />
+      <Route path="/suppliers/:id" element={<SupplierDetail />} />
       <Route path="/employees" element={<Employees />} />
+      <Route path="/employees/:id" element={<EmployeeDetail />} />
       <Route path="/categories" element={<Categories />} />
       <Route path="/products" element={<Products />} />
       <Route path="/sales" element={<Sales />} />
@@ -123,6 +128,7 @@ const AppRoutes = () => {
       <Route path="/reports/salaries" element={<ReportSalaries />} />
       <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
       <Route path="/karigars" element={<Karigars />} />
+      <Route path="/karigars/:id" element={<KarigarDetail />} />
       <Route path="/repairs" element={<Repairs />} />
       <Route path="/custom-orders" element={<CustomOrders />} />
       <Route path="/custom-orders/:id" element={<CustomOrderDetail />} />

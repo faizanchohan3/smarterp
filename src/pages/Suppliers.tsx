@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
@@ -12,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, User, Phone, MapPin } from "lucide-react";
 
 const Suppliers = () => {
+  const navigate = useNavigate();
   const { data, create, update, remove } = useBusinessData("suppliers");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -121,7 +123,7 @@ const Suppliers = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <DataTable columns={columns} data={data} onEdit={openEdit} onDelete={(row) => remove(row.id)} />
+        <DataTable columns={columns} data={data} onEdit={openEdit} onDelete={(row) => remove(row.id)} onRowClick={(row) => navigate(`/suppliers/${row.id}`)} />
       </div>
     </AppLayout>
   );

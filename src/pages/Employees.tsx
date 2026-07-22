@@ -8,8 +8,11 @@ import DataTable from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, BookOpen } from "lucide-react";
+
+const POSITIONS = ["CEO", "Manager", "Sales Staff", "Karigar Helper", "Accountant", "Other"];
 import { formatCurrency } from "@/lib/currency";
 
 const Employees = () => {
@@ -97,9 +100,11 @@ const Employees = () => {
     { key: "full_name", label: "Name" },
     { key: "phone", label: "Phone" },
     { key: "position", label: "Position" },
-    { key: "salary", label: "Salary (PKR)", render: (v: number) => formatCurrency(v) },
+    { key: "salary", label: "Salary (PKR)", render: (v: number) => Number(v) > 0 ? formatCurrency(v) : "-" },
     { key: "id", label: "This Month", render: (_: string, row: any) => (
-      isPaidThisMonth(row.id)
+      Number(row.salary) <= 0
+        ? <span className="text-xs text-muted-foreground">—</span>
+        : isPaidThisMonth(row.id)
         ? <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs font-medium">Paid</span>
         : <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-xs font-medium">Unpaid</span>
     )},
@@ -197,8 +202,19 @@ const Employees = () => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <Input placeholder="Full Name" value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} required />
                   <Input placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-                  <Input placeholder="Position" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
-                  <Input placeholder="Salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} />
+                  <Select value={form.position} onValueChange={v => setForm({ ...form, position: v, salary: v === "CEO" ? "0" : form.salary })}>
+                    <SelectTrigger><SelectValue placeholder="Position" /></SelectTrigger>
+                    <SelectContent>
+                      {POSITIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {form.position === "CEO" ? (
+                    <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                      CEO / Partner — no monthly salary. Money taken is tracked as withdrawals on their ledger (open their detail page after saving).
+                    </p>
+                  ) : (
+                    <Input placeholder="Salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} />
+                  )}
                   <Button type="submit" className="w-full">{editing ? "Update" : "Create"}</Button>
                 </form>
               </DialogContent>
@@ -212,22 +228,25 @@ const Employees = () => {
             label: "Actions",
             render: (_: any, row: any) => (
               <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEmp(row);
-                  setSalaryMonth(new Date().toISOString().slice(0, 10));
-                  setSalaryOpen(true);
-                }}>Pay</Button>
+                {Number(row.salary) > 0 && (
+                  <Button size="sm" variant="outline" onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedEmp(row);
+                    setSalaryMonth(new Date().toISOString().slice(0, 10));
+                    setSalaryOpen(true);
+                  }}>Pay</Button>
+                )}
                 <Button size="sm" variant="outline" className="gap-1" onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/ledger?tab=employee&id=${row.id}`);
-                }}><BookOpen className="w-3.5 h-3.5" /> Ledger</Button>
+                  navigate(`/employees/${row.id}`);
+                }}><BookOpen className="w-3.5 h-3.5" /> {Number(row.salary) > 0 ? "Ledger" : "Withdrawals"}</Button>
               </div>
             ),
           }]}
           data={data}
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
+          onRowClick={(row) => navigate(`/employees/${row.id}`)}
         />
 
         <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
