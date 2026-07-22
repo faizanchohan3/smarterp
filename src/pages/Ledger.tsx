@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,8 +16,59 @@ import { formatCurrency } from "@/lib/currency";
 import { Printer } from "lucide-react";
 
 const Ledger = () => {
+  const navigate = useNavigate();
   const { data: ledgerEntries, fetch: fetchLedgerEntries } = useBusinessData("ledger_entries");
+  const { data: sales } = useBusinessData("sales");
+  const { data: customOrders } = useBusinessData("custom_orders");
   const { toast } = useToast();
+
+  // Ledger descriptions embed the source document's number (INV-.../PUR-.../
+  // CO-.../CUST_PURCHASE:<id>) — turn those into clickable links to the
+  // actual invoice/order instead of plain text.
+  const linkedDescription = (v: string) => {
+    if (!v) return v;
+    const invMatch = v.match(/INV-[A-Z0-9]+/);
+    if (invMatch) {
+      const sale = sales.find((s: any) => s.invoice_number === invMatch[0]);
+      if (sale) {
+        return (
+          <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+            onClick={() => navigate(`/sales/${sale.id}`)}>
+            {v} ↗
+          </button>
+        );
+      }
+    }
+    if (v.startsWith("CUST_PURCHASE:")) {
+      return (
+        <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+          onClick={() => navigate("/purchases")}>
+          Customer Purchase ↗
+        </button>
+      );
+    }
+    if (/PUR-[A-Z0-9]+/.test(v)) {
+      return (
+        <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+          onClick={() => navigate("/purchases")}>
+          {v} ↗
+        </button>
+      );
+    }
+    const coMatch = v.match(/CO-[A-Z0-9]+/);
+    if (coMatch) {
+      const order = customOrders.find((o: any) => o.order_number === coMatch[0]);
+      if (order) {
+        return (
+          <button type="button" className="text-primary hover:underline underline-offset-2 text-left"
+            onClick={() => navigate(`/custom-orders/${order.id}`)}>
+            {v} ↗
+          </button>
+        );
+      }
+    }
+    return v;
+  };
 
   // Escape hatch for stray/orphaned entries (e.g. left over from an old flow
   // that no longer exists) that have no page of their own to be deleted from.
@@ -102,7 +153,7 @@ const Ledger = () => {
         render: (_: string, row: any) => row.__total ? "" : (list.find((p: any) => p.id === row.reference_id)?.[nameKey] || "-"),
       }] : []),
       { key: "description", label: "Description", render: (v: string, row: any) =>
-        row.__total ? <span className="font-bold">TOTAL</span> : v },
+        row.__total ? <span className="font-bold">TOTAL</span> : linkedDescription(v) },
       { key: "debit", label: "Debit", render: (v: number, row: any) =>
         row.__total
           ? <span className="font-bold border-t-2 border-foreground pt-1 inline-block">{formatCurrency(v)}</span>
