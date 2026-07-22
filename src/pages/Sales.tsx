@@ -195,7 +195,9 @@ const Sales = () => {
   }, 0);
 
   const totalAmount = totalGoldValue + totalMakingCharges;
-  const finalAmount = totalAmount - (parseFloat(discount) || 0);
+  // Auto round-off — customers pay/get charged a clean figure (e.g. 12000 or
+  // 12100), not an odd amount like 12038 from raw gold-weight math.
+  const finalAmount = Math.round((totalAmount - (parseFloat(discount) || 0)) / 100) * 100;
   const paid = parseFloat(paidAmount) || 0;
 
   const getPaymentStatus = (paidAmt: number, totalAmt: number) => {

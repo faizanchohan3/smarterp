@@ -79,7 +79,9 @@ const Purchases = () => {
     setItems(updated);
   };
 
-  const totalAmount = items.reduce((sum: number, i: any) => sum + i.total, 0);
+  // Auto round-off — a clean total (e.g. 12000 or 12100), not an odd figure
+  // like 12038 from raw gold-weight math.
+  const totalAmount = Math.round(items.reduce((sum: number, i: any) => sum + i.total, 0) / 100) * 100;
   const paid = parseFloat(paidAmount) || 0;
 
   const resetForm = () => {
