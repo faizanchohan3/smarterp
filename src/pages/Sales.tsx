@@ -11,6 +11,7 @@ import ProductCombobox from "@/components/shared/ProductCombobox";
 import ImageUpload from "@/components/shared/ImageUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -108,6 +109,7 @@ const Sales = () => {
   const [paidAmount, setPaidAmount] = useState("");
   const [tolaRate, setTolaRate] = useState("");
   const [repaymentDate, setRepaymentDate] = useState("");
+  const [saleNote, setSaleNote] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
 
   const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0, cost_weight: 0 }]);
@@ -220,6 +222,7 @@ const Sales = () => {
       payment_status: paymentStatus,
       tola_rate: parseFloat(tolaRate) || 0,
       repayment_date: repaymentDate || null,
+      notes_internal: saleNote.trim() || null,
     }).select().single();
 
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -314,6 +317,7 @@ const Sales = () => {
     setPaidAmount("");
     setTolaRate("");
     setRepaymentDate("");
+    setSaleNote("");
     fetchSales();
   };
 
@@ -456,6 +460,14 @@ const Sales = () => {
                       title="Repayment Due Date"
                     />
                   </div>
+
+                  <Textarea
+                    placeholder="Note (internal reference only — never printed on invoice)"
+                    value={saleNote}
+                    onChange={e => setSaleNote(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
 
                   {/* ── Quick Create Customer ── */}
                   <Dialog open={newCustOpen} onOpenChange={setNewCustOpen}>

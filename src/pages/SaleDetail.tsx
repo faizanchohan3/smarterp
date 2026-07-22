@@ -457,6 +457,13 @@ const SaleDetail = () => {
               );
             })()}
 
+            {(sale as any).notes_internal && (
+              <div className="mt-4 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-3">
+                <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide mb-1">Note — Internal Only, Not Printed</p>
+                <p className="text-sm whitespace-pre-wrap">{(sale as any).notes_internal}</p>
+              </div>
+            )}
+
             {payments.length > 0 && (
               <div className="mt-8">
                 <h3 className="text-sm font-semibold mb-2">Repayment History</h3>

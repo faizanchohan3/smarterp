@@ -20,9 +20,10 @@ interface DataTableProps {
   totalsLabel?: string;
   rowClassName?: (row: any) => string;
   pageSize?: number;
+  disableActions?: (row: any) => boolean;
 }
 
-const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total", rowClassName, pageSize }: DataTableProps) => {
+const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals, totalsLabel = "Total", rowClassName, pageSize, disableActions }: DataTableProps) => {
   const hasActions = onEdit || onDelete || onSell;
   const [page, setPage] = useState(1);
   const totalPages = pageSize ? Math.max(1, Math.ceil(data.length / pageSize)) : 1;
@@ -72,12 +73,12 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
                 {hasActions && (
                   <TableCell>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {onEdit && (
+                      {onEdit && !(disableActions && disableActions(row)) && (
                         <Button variant="ghost" size="icon" onClick={() => onEdit(row)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
                       )}
-                      {onDelete && (
+                      {onDelete && !(disableActions && disableActions(row)) && (
                         <Button variant="ghost" size="icon" onClick={() => onDelete(row)}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>

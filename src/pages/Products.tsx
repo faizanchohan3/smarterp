@@ -305,7 +305,8 @@ const Products = () => {
           data={filteredData}
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
-          rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "bg-blue-800 text-black" : ""}
+          disableActions={(row) => Number(row.stock_quantity) <= 0}
+          rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "bg-blue-800 text-black hover:bg-blue-800" : ""}
           pageSize={20}
         />
       </div>
