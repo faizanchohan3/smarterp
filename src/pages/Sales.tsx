@@ -40,6 +40,7 @@ interface SaleItem {
   supplier_id?: string; // supplier to buy from if not in stock
   cost_price?: number; // cost from supplier for drop-ship items
   cost_weight?: number; // fine gold weight (grams) for profit calc — internal only, never printed
+  kaat?: number; // drop-ship only: auto-derives cost_weight = weight(ratti) / (96 x kaat)
 }
 
 const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): number => {
@@ -110,7 +111,7 @@ const Sales = () => {
   const [repaymentDate, setRepaymentDate] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
 
-  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0, cost_weight: 0 }]);
+  const addItem = () => setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0, cost_weight: 0, kaat: 0 }]);
 
   const goldPerUnitCalc = (weightStr: string | number, weightUnit: string, rate: number) => {
     const weight = parseFloat(String(weightStr)) || 0;
@@ -133,6 +134,15 @@ const Sales = () => {
         updated[index].cost_weight = Number(prod.cost_weight) || 0;
       }
     }
+    // Drop-ship: Cost Weight auto-derives from Weight + Kaat, so the cashier only
+    // ever types the Kaat — no manual gold-weight math.
+    // Cost Weight (g) = Weight-in-ratti / (96 x Kaat)
+    if (updated[index].in_stock === false && Number(updated[index].kaat) > 0) {
+      const w = parseFloat(String(updated[index].weight)) || 0;
+      const weightRatti = updated[index].weight_unit === "ratti" ? w : w * RATTI_PER_GRAM;
+      updated[index].cost_weight = weightRatti / (96 * Number(updated[index].kaat));
+    }
+
     const rate = parseFloat(tolaRate) || 0;
     const item = updated[index];
     const qty = parseFloat(String(item.quantity)) || 1;
@@ -616,13 +626,19 @@ const Sales = () => {
                                 </Select>
                                 <Input
                                   type="number"
-                                  step="0.0001"
-                                  placeholder="Cost Weight (g)"
+                                  step="0.01"
+                                  placeholder="Kaat (e.g. 6)"
                                   className="h-8"
-                                  value={item.cost_weight || ""}
-                                  onChange={e => updateItem(i, "cost_weight", parseFloat(e.target.value) || 0)}
+                                  value={item.kaat || ""}
+                                  onChange={e => updateItem(i, "kaat", parseFloat(e.target.value) || 0)}
                                 />
                               </div>
+                              {Number(item.kaat) > 0 && (
+                                <p className="text-xs text-amber-800">
+                                  Cost Weight (auto): <strong>{Number(item.cost_weight || 0).toFixed(4)}g</strong>
+                                  <span className="text-amber-600"> — {item.weight}{item.weight_unit === "ratti" ? "r" : "g"} ÷ (96 × {item.kaat})</span>
+                                </p>
+                              )}
                               {rate > 0 && Number(item.cost_weight) > 0 && (
                                 <p className="text-xs text-amber-800">
                                   Owed to supplier: {(Number(item.cost_weight) * (item.quantity || 1)).toFixed(3)}g gold
