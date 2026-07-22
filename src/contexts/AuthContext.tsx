@@ -65,15 +65,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (roles && roles.length > 0) {
-      setRole(roles[0].role as AppRole);
-      setBusinessId(roles[0].business_id);
+      // user_roles has no uniqueness guarantee on user_id — if stale/duplicate
+      // rows exist, an unordered query can non-deterministically return a
+      // different row on different loads, so a genuinely approved account can
+      // randomly render Pending Approval. Resolve deterministically: when
+      // there's more than one candidate business, prefer whichever is approved.
+      const businessIds = [...new Set(roles.map((r: any) => r.business_id).filter(Boolean))];
+      let chosenRole = roles[0];
+      let biz: any = null;
 
-      if (roles[0].business_id) {
-        const { data: biz, error: bizErr } = await (supabase
+      if (businessIds.length > 0) {
+        const { data: bizList, error: bizErr } = await (supabase
           .from("businesses")
-          .select("status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
-          .eq("id", roles[0].business_id)
-          .maybeSingle();
+          .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
+          .in("id", businessIds);
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -84,6 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        biz = (bizList || []).find((b: any) => b.status === "approved") || bizList?.[0] || null;
+        chosenRole = roles.find((r: any) => r.business_id === biz?.id) || roles[0];
+      }
+
+      setRole(chosenRole.role as AppRole);
+      setBusinessId(chosenRole.business_id);
+
+      if (chosenRole.business_id) {
         setBusinessStatus(biz?.status || null);
         setShopName(biz?.shop_name || null);
         setOwnerName(biz?.owner_name || null);
