@@ -280,6 +280,7 @@ const CustomerDetail = () => {
           <CardContent>
             <DataTable columns={[
               { key: "invoice_number", label: "Invoice" },
+              { key: "tola_rate", label: "Gold Rate", render: (v: number) => Number(v) > 0 ? `${formatCurrency(v)}/tola` : "-" },
               { key: "final_amount", label: "Amount", render: (v: number) => formatCurrency(v) },
               { key: "paid_amount", label: "Paid", render: (v: number) => formatCurrency(v) },
               { key: "id", label: "Remaining", render: (_: any, row: any) => {
