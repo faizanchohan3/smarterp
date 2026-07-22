@@ -8,6 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 export const isJwtExpired = (err: any) =>
   !!err && (err.code === "PGRST301" || /jwt/i.test(err.message || ""));
 
+// A column referenced in code but missing on the live database (e.g. a
+// migration that was never run) must never be allowed to silently break
+// login — that failure mode is invisible (no error shown anywhere) and
+// looks exactly like "Pending Approval" for a perfectly approved account.
+const isMissingColumn = (err: any) =>
+  !!err && (err.code === "42703" || /column .* does not exist/i.test(err.message || ""));
+
 type AppRole = "super_admin" | "business_admin" | "staff";
 
 interface AuthContextType {
@@ -86,10 +93,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let biz: any = null;
 
       if (businessIds.length > 0) {
-        const { data: bizList, error: bizErr } = await (supabase
+        let { data: bizList, error: bizErr } = await (supabase
           .from("businesses")
           .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
           .in("id", businessIds);
+
+        if (bizErr && isMissingColumn(bizErr)) {
+          console.error("businesses query failed on a missing column (likely an unrun migration) — retrying without it:", bizErr.message);
+          const retry = await (supabase
+            .from("businesses")
+            .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
+            .in("id", businessIds);
+          bizList = retry.data;
+          bizErr = retry.error;
+        }
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -97,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!refreshErr) return fetchUserData(userId, true);
           }
           if (isJwtExpired(bizErr)) await supabase.auth.signOut();
+          console.error("Failed to load business data during login:", bizErr.message);
           return;
         }
 
@@ -117,10 +135,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopWhatsappQr(biz?.whatsapp_qr_url || null);
       }
     } else {
-      const { data: biz, error: bizErr } = await (supabase
+      let { data: biz, error: bizErr } = await (supabase
         .from("businesses")
         .select("id, status, shop_name, owner_name, logo_url, address, phone, whatsapp_qr_url") as any)
         .eq("user_id", userId);
+
+      if (bizErr && isMissingColumn(bizErr)) {
+        console.error("businesses query failed on a missing column (likely an unrun migration) — retrying without it:", bizErr.message);
+        const retry = await (supabase
+          .from("businesses")
+          .select("id, status, shop_name, owner_name, logo_url, address, phone") as any)
+          .eq("user_id", userId);
+        biz = retry.data;
+        bizErr = retry.error;
+      }
 
       if (bizErr) {
         if (isJwtExpired(bizErr) && !alreadyRetried) {
@@ -128,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!refreshErr) return fetchUserData(userId, true);
         }
         if (isJwtExpired(bizErr)) await supabase.auth.signOut();
+        console.error("Failed to load business data during login:", bizErr.message);
         return;
       }
 
