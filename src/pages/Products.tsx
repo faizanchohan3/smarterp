@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
 import ImageUpload from "@/components/shared/ImageUpload";
@@ -10,21 +13,105 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/currency";
-import { Plus, Printer } from "lucide-react";
+import { Plus, Printer, Download, Upload } from "lucide-react";
 import { KARAT_TABLE, fineWeight } from "@/lib/gold";
+import { toCSV, parseCSV, downloadCSV } from "@/lib/csv";
+
+const IMPORT_HEADERS = ["Name", "Category", "Price", "Stock Quantity", "Purity Karat", "Gross Weight (g)", "Net Weight (g)", "Cost Weight (g)", "Serial Number"];
 
 const Products = () => {
-  const { data, create, update, remove } = useBusinessData("products");
+  const { data, create, update, remove, fetch: refetchProducts } = useBusinessData("products");
   const { data: categories } = useBusinessData("categories");
+  const { businessId } = useAuth();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "", category_id: "", price: "", weight_value: "", weight_unit: "gram", stock_quantity: "", image_url: "",
     purity_karat: "", gross_weight: "", net_weight: "", serial_number: "", cost_weight: "",
   });
 
   const filteredData = categoryFilter === "all" ? data : data.filter((p: any) => p.category_id === categoryFilter);
+
+  const handleExport = () => {
+    const rows = filteredData.map((p: any) => [
+      p.name,
+      categories.find((c: any) => c.id === p.category_id)?.name || "",
+      p.price ?? "",
+      p.stock_quantity ?? "",
+      p.purity_karat ?? "",
+      p.gross_weight ?? "",
+      p.net_weight ?? "",
+      p.cost_weight ?? "",
+      p.serial_number ?? "",
+    ]);
+    downloadCSV(`products-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(IMPORT_HEADERS, rows));
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !businessId) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const allRows = parseCSV(text);
+      if (allRows.length < 2) {
+        toast({ title: "Empty file", description: "CSV mein header ke ilawa koi row nahi mili.", variant: "destructive" });
+        return;
+      }
+      const [header, ...dataRows] = allRows;
+      const idx = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+      const iName = idx("Name"), iCategory = idx("Category"), iPrice = idx("Price"), iStock = idx("Stock Quantity"),
+        iKarat = idx("Purity Karat"), iGross = idx("Gross Weight (g)"), iNet = idx("Net Weight (g)"),
+        iCost = idx("Cost Weight (g)"), iSerial = idx("Serial Number");
+
+      if (iName < 0) {
+        toast({ title: "Invalid CSV", description: `A "Name" column is required. Expected headers: ${IMPORT_HEADERS.join(", ")}`, variant: "destructive" });
+        return;
+      }
+
+      let success = 0, failed = 0;
+      for (const r of dataRows) {
+        const name = (r[iName] || "").trim();
+        if (!name) continue;
+        const categoryName = iCategory >= 0 ? (r[iCategory] || "").trim() : "";
+        const category = categoryName ? categories.find((c: any) => c.name.toLowerCase() === categoryName.toLowerCase()) : null;
+        const grossWeight = iGross >= 0 && r[iGross] ? parseFloat(r[iGross]) : null;
+        const karatValue = iKarat >= 0 && r[iKarat] ? parseInt(r[iKarat]) : null;
+        const netWeight = iNet >= 0 && r[iNet] ? parseFloat(r[iNet]) : (grossWeight && karatValue ? fineWeight(grossWeight, karatValue) : null);
+
+        const { error } = await (supabase.from("products") as any).insert({
+          business_id: businessId,
+          name,
+          category_id: category?.id || null,
+          price: iPrice >= 0 ? parseFloat(r[iPrice]) || 0 : 0,
+          weight: grossWeight,
+          weight_value: grossWeight,
+          weight_unit: "gram",
+          stock_quantity: iStock >= 0 ? parseFloat(r[iStock]) || 0 : 0,
+          purity_karat: karatValue,
+          gross_weight: grossWeight,
+          net_weight: netWeight,
+          cost_weight: iCost >= 0 && r[iCost] ? parseFloat(r[iCost]) : null,
+          serial_number: iSerial >= 0 ? (r[iSerial] || null) : null,
+        });
+        if (error) failed++; else success++;
+      }
+
+      toast({
+        title: "Import complete",
+        description: `${success} product(s) imported${failed ? `, ${failed} failed` : ""}.`,
+        variant: failed && !success ? "destructive" : undefined,
+      });
+      refetchProducts();
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const generateSerial = () => `SN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
@@ -111,6 +198,13 @@ const Products = () => {
             </Select>
             <Button variant="outline" className="gap-2" onClick={() => window.dispatchEvent(new Event("open-print-dialog"))}>
               <Printer className="w-4 h-4" /> Print
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={handleExport}>
+              <Download className="w-4 h-4" /> Export
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportFile} />
+            <Button variant="outline" className="gap-2" disabled={importing} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" /> {importing ? "Importing..." : "Import"}
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
