@@ -118,7 +118,14 @@ const Purchases = () => {
       items.map((item: any) => ({ purchase_id: purchase.id, ...item }))
     );
 
-    // Customer purchase: create ledger entry using a special description format for reverse lookup.
+    // Customer purchase (shop buying an item FROM the customer, e.g. a trade-in/
+    // exchange): the shop now owes the customer for it, so this must be a
+    // CREDIT — same convention as supplier purchases (credit = we owe them).
+    // Paying them back reduces that, so it's a debit, mirroring a Sale's debit
+    // (customer owes shop) / payment-credit pattern in reverse. This is what
+    // lets a trade-in and a subsequent Sale net out correctly on the same
+    // customer's ledger instead of both looking like separate amounts owed
+    // to the shop.
     // description = "CUST_PURCHASE:<purchaseId>" so we can find which customer bought what.
     if (sourceType === "customer" && formCustomerId) {
       await (supabase.from("ledger_entries") as any).insert({
@@ -126,14 +133,14 @@ const Purchases = () => {
         entry_type: "customer",
         reference_id: formCustomerId,
         description: `CUST_PURCHASE:${purchase.id}`,
-        debit: totalAmount,
-        credit: 0,
+        debit: 0,
+        credit: totalAmount,
         balance: 0,
       });
       if (paid > 0) {
         await (supabase.from("ledger_entries") as any).insert({
           business_id: businessId, entry_type: "customer", reference_id: formCustomerId,
-          description: `Paid to customer for ${invoiceNumber}`, debit: 0, credit: paid, balance: 0,
+          description: `Paid to customer for ${invoiceNumber}`, debit: paid, credit: 0, balance: 0,
         });
       }
     }
