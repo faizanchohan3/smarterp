@@ -65,6 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (roles && roles.length > 0) {
+      // Super admin is a platform-level role with no business of its own — it
+      // must NEVER be routed through the pending/approved business flow, no
+      // matter what other (possibly stale) user_roles rows exist for this user.
+      const superAdminRole = roles.find((r: any) => r.role === "super_admin");
+      if (superAdminRole) {
+        setRole("super_admin");
+        setBusinessId(null);
+        setBusinessStatus(null);
+        return;
+      }
+
       // user_roles has no uniqueness guarantee on user_id — if stale/duplicate
       // rows exist, an unordered query can non-deterministically return a
       // different row on different loads, so a genuinely approved account can
