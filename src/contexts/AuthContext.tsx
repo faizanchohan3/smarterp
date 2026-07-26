@@ -61,6 +61,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // can be told apart from a genuine new sign-in.
   const loadedUserId = useRef<string | null>(null);
 
+  // supabase-js can fire multiple auth events back-to-back on a fresh page
+  // load (e.g. INITIAL_SESSION immediately followed by SIGNED_IN) — without
+  // this, each one kicked off its own independent fetchUserData call for
+  // the same user, doubling load on the very request that's already slow
+  // on a cold refresh. Dedupe so overlapping calls share one in-flight
+  // request instead of racing.
+  const inFlight = useRef<{ userId: string; promise: Promise<void> } | null>(null);
+  const runFetchUserData = (userId: string): Promise<void> => {
+    if (inFlight.current && inFlight.current.userId === userId) {
+      return inFlight.current.promise;
+    }
+    const p = fetchUserData(userId).finally(() => {
+      if (inFlight.current?.promise === p) inFlight.current = null;
+    });
+    inFlight.current = { userId, promise: p };
+    return p;
+  };
+
   const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
     const { data: roles, error: rolesErr } = await supabase
       .from("user_roles")
@@ -190,22 +208,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (session?.user && loadedUserId.current === session.user.id) {
-        fetchUserData(session.user.id).catch(() => {});
+        runFetchUserData(session.user.id).catch(() => {});
         return;
       }
 
       if (session?.user) {
         setLoading(true);
-        try {
-          // Cap the whole role/business lookup chain too, not just the
-          // refreshSession retries inside it — a hung query on wake-from-
-          // sleep should never leave the app stuck on the spinner forever.
-          await withTimeout(fetchUserData(session.user.id), 15000);
-        } catch {
-          // Timed out — leave whatever role/business state we already had
-          // (may be none, may be stale-but-fine) rather than hang. The user
-          // can retry any action that actually needs fresh data.
-        }
+        // Deliberately NOT capped with a "give up after N seconds" timeout
+        // here: an earlier version did that and it backfired — bailing out
+        // early with setLoading(false) while role/businessStatus were still
+        // null made the app briefly render the Pending-Approval screen
+        // (null status reads as "not approved") before the real, slower
+        // response finally landed a bit later and corrected it. Better to
+        // keep showing the spinner (App.tsx's own stuck-timer already
+        // offers a manual Reload after 8s) than to render a wrong screen.
+        await runFetchUserData(session.user.id);
         loadedUserId.current = session.user.id;
         setLoading(false);
       } else {
