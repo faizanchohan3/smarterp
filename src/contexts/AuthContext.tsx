@@ -130,19 +130,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // A single source of truth for session state. supabase-js v2 fires this
+    // listener immediately on subscribe with the current session (event
+    // INITIAL_SESSION) and again on every subsequent change — there is no
+    // need for a separate supabase.auth.getSession() call (having both
+    // raced independently here before, each calling fetchUserData and
+    // setLoading(false), which could land in the wrong order).
+    //
+    // Critically: TOKEN_REFRESHED fires periodically in the background
+    // (Supabase renews the JWT before it expires) even while the user is
+    // just sitting on a page mid-form, with role/businessStatus completely
+    // unchanged. Setting loading=true here was unmounting the entire routed
+    // page on every refresh — wiping out whatever the user had typed into
+    // any open form (a sale, a purchase, a payment) with no warning. Only
+    // a genuine session establishment (sign-in, initial load) should ever
+    // show the loading spinner / re-fetch role data.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      if (event === "TOKEN_REFRESHED") {
+        return;
+      }
+
       if (session?.user) {
-        // Show the loading spinner (not stale/blank role state) until the
-        // freshly logged-in user's role & business status are fetched —
-        // otherwise the app briefly renders "Pending Approval" or a 404
-        // using leftover state from before login.
         setLoading(true);
-        setTimeout(async () => {
-          await fetchUserData(session.user.id);
-          setLoading(false);
-        }, 0);
+        await fetchUserData(session.user.id);
+        setLoading(false);
       } else {
         setRole(null);
         setBusinessId(null);
@@ -154,15 +168,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopPhone(null);
         setLoading(false);
       }
-    });
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
-      }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
