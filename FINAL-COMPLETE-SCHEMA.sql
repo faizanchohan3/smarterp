@@ -277,6 +277,8 @@ CREATE TABLE public.purchase_items (
   weight_unit TEXT DEFAULT 'gram',
   unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
   total NUMERIC(12,2) NOT NULL DEFAULT 0,
+  kaat NUMERIC(6,2),
+  cost_weight NUMERIC(12,4),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { postAccountEntries } from "@/lib/accounting";
+import { TOLA_TO_GRAM, RATTI_PER_GRAM, getLatestRate } from "@/lib/gold";
 import { Plus, Trash2, Package, Archive } from "lucide-react";
 
 const Purchases = () => {
@@ -24,8 +26,24 @@ const Purchases = () => {
   const { data: categories } = useBusinessData("categories");
   const { data: ledgerEntries } = useBusinessData("ledger_entries");
   const { data: expenseData, fetch: fetchExpenses } = useBusinessData("expenses");
+  const { data: goldRates } = useBusinessData("gold_rates" as any);
   const { businessId } = useAuth();
   const { toast } = useToast();
+  const latestRate: any = getLatestRate(goldRates as any[]);
+  const [tolaRate, setTolaRate] = useState("");
+  const [karat, setKarat] = useState<string>("22k");
+
+  const applyKaratRate = (k: string) => {
+    if (!latestRate) return;
+    const map: Record<string, number> = {
+      "24k": Number(latestRate.tola_24k) || 0,
+      "22k": Number(latestRate.tola_22k) || 0,
+      "21k": Number(latestRate.tola_21k) || 0,
+      "18k": Number(latestRate.tola_18k) || 0,
+    };
+    const r = map[k] || 0;
+    if (r > 0) setTolaRate(String(r));
+  };
 
   // --- Create form ---
   const [open, setOpen] = useState(false);
@@ -59,7 +77,7 @@ const Purchases = () => {
   // ─── Form helpers ────────────────────────────────────────────────────────────
 
   const addItem = () =>
-    setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", unit_price: 0, total: 0 }]);
+    setItems([...items, { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", kaat: 0, cost_weight: 0, unit_price: 0, total: 0 }]);
 
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...items];
@@ -75,8 +93,36 @@ const Purchases = () => {
     if (field === "product_name") {
       updated[index].product_id = "";
     }
+
+    // Kaat auto-derives Cost Weight — the fine gold weight owed to the
+    // supplier. 96 ratti = 1 tola; Cost Weight (g) = (Weight-in-ratti / 96) x Kaat
+    if (Number(updated[index].kaat) > 0) {
+      const w = parseFloat(String(updated[index].weight)) || 0;
+      const weightRatti = updated[index].weight_unit === "ratti" ? w : w * RATTI_PER_GRAM;
+      updated[index].cost_weight = (weightRatti / 96) * Number(updated[index].kaat);
+    }
+
+    // Price auto-calculates from Weight x today's gold rate, like Sales —
+    // still overridable by typing directly when no rate is set.
+    const rate = parseFloat(tolaRate) || 0;
+    if (rate > 0 && (field === "weight" || field === "weight_unit") && Number(updated[index].weight) > 0) {
+      const w = parseFloat(String(updated[index].weight)) || 0;
+      const wg = updated[index].weight_unit === "ratti" ? w / RATTI_PER_GRAM : w;
+      updated[index].unit_price = (wg / TOLA_TO_GRAM) * rate;
+    }
+
     updated[index].total = updated[index].quantity * updated[index].unit_price;
     setItems(updated);
+  };
+
+  const recalcAllPrices = (rate: number) => {
+    if (rate <= 0) return;
+    setItems(items.map((item: any) => {
+      const w = parseFloat(String(item.weight)) || 0;
+      const wg = item.weight_unit === "ratti" ? w / RATTI_PER_GRAM : w;
+      const unit_price = wg > 0 ? (wg / TOLA_TO_GRAM) * rate : item.unit_price;
+      return { ...item, unit_price, total: item.quantity * unit_price };
+    }));
   };
 
   // Auto round-off — a clean total (e.g. 12000 or 12100), not an odd figure
@@ -90,6 +136,7 @@ const Purchases = () => {
     setFormCustomerId("");
     setPaidAmount("");
     setSourceType("supplier");
+    setTolaRate("");
   };
 
   // ─── Create purchase ─────────────────────────────────────────────────────────
@@ -117,8 +164,20 @@ const Purchases = () => {
 
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
+    // Only the columns purchase_items actually has — kaat/cost_weight live in
+    // client state (pendingItems) for the Add-to-Stock step right after this,
+    // not persisted here, so this insert never breaks on a missing column.
     await (supabase.from("purchase_items") as any).insert(
-      items.map((item: any) => ({ purchase_id: purchase.id, ...item }))
+      items.map((item: any) => ({
+        purchase_id: purchase.id,
+        product_id: item.product_id || null,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        weight: item.weight,
+        weight_unit: item.weight_unit,
+        unit_price: item.unit_price,
+        total: item.total,
+      }))
     );
 
     // Customer purchase (shop buying an item FROM the customer, e.g. a trade-in/
@@ -148,17 +207,19 @@ const Purchases = () => {
       }
     }
 
+    // What we owe the supplier is always GOLD (Kaat-derived Cost Weight),
+    // never PKR — same convention as Sales' drop-ship. total_amount/paid on
+    // the purchases row still records the PKR value for this shop's own
+    // bookkeeping (Purchases list, Chart of Accounts Cash/Payable), but the
+    // supplier ledger — what Payables/Ledger actually show as owed — is
+    // gold-only.
     if (sourceType === "supplier" && supplierId) {
-      const totalWeightG = items.reduce((s: number, it: any) => s + (parseFloat(String(it.weight)) || 0) * (parseFloat(String(it.quantity)) || 1), 0);
-      await (supabase.from("ledger_entries") as any).insert({
-        business_id: businessId, entry_type: "supplier", reference_id: supplierId,
-        description: `Purchase ${invoiceNumber}${totalWeightG > 0 ? ` (${totalWeightG.toFixed(3)}g)` : ""}`,
-        debit: 0, credit: totalAmount, gold_debit: 0, gold_credit: totalWeightG, balance: 0,
-      });
-      if (paid > 0) {
+      const totalCostWeightG = items.reduce((s: number, it: any) => s + (Number(it.cost_weight) || 0) * (parseFloat(String(it.quantity)) || 1), 0);
+      if (totalCostWeightG > 0) {
         await (supabase.from("ledger_entries") as any).insert({
           business_id: businessId, entry_type: "supplier", reference_id: supplierId,
-          description: `Payment for ${invoiceNumber}`, debit: paid, credit: 0, balance: 0,
+          description: `Purchase ${invoiceNumber} (${totalCostWeightG.toFixed(3)}g gold owed)`,
+          debit: 0, credit: 0, gold_debit: 0, gold_credit: totalCostWeightG, balance: 0,
         });
       }
     }
@@ -194,14 +255,23 @@ const Purchases = () => {
               .eq("id", item.product_id);
           }
         } else if (item.product_name?.trim()) {
-          // New product typed manually — create it with the selected category
+          // New product typed manually — create it with the selected category.
+          // Weight goes on the product's own weight fields; Cost Weight (the
+          // Kaat-derived fine gold weight) goes on cost_weight, same split as
+          // the product form itself.
           const categoryId = itemCategories[i] || null;
+          const weightVal = Number(item.weight) || null;
           await (supabase.from("products") as any).insert({
             business_id: businessId,
             name: item.product_name.trim(),
             price: item.unit_price,
             stock_quantity: item.quantity,
             category_id: categoryId,
+            weight: weightVal,
+            weight_value: weightVal,
+            weight_unit: item.weight_unit || "gram",
+            gross_weight: weightVal,
+            cost_weight: Number(item.cost_weight) || null,
           });
         }
       }
@@ -451,6 +521,31 @@ const Purchases = () => {
                   </Select>
                 )}
 
+                {latestRate && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                    <div className="font-semibold mb-1">Latest Gold Rate — pick one to auto-fill price:</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { k: "24k", label: `24K ${formatCurrency(latestRate.tola_24k)}` },
+                        { k: "22k", label: `22K ${formatCurrency(latestRate.tola_22k)}` },
+                        { k: "21k", label: `21K ${formatCurrency(latestRate.tola_21k)}` },
+                        { k: "18k", label: `18K ${formatCurrency(latestRate.tola_18k)}` },
+                      ].map(o => (
+                        <Button key={o.k} type="button" size="sm" variant={karat === o.k ? "default" : "outline"} className="h-7 text-[11px]"
+                          onClick={() => { setKarat(o.k); applyKaratRate(o.k); recalcAllPrices(({ "24k": Number(latestRate.tola_24k), "22k": Number(latestRate.tola_22k), "21k": Number(latestRate.tola_21k), "18k": Number(latestRate.tola_18k) } as any)[o.k] || 0); }}>
+                          {o.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <Input
+                  placeholder="1 Tola Gold Rate (PKR) — auto from selection or enter custom"
+                  type="number"
+                  value={tolaRate}
+                  onChange={e => { setTolaRate(e.target.value); recalcAllPrices(parseFloat(e.target.value) || 0); }}
+                />
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <h3 className="font-medium text-sm">Items</h3>
@@ -494,10 +589,18 @@ const Purchases = () => {
                           <Input type="number" placeholder="1" value={item.quantity}
                             onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 0)} />
                         </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground mb-1">Weight (g)</p>
-                          <Input type="number" step="0.001" placeholder="0" value={item.weight || ""}
-                            onChange={e => updateItem(i, "weight", parseFloat(e.target.value) || 0)} />
+                        <div className="flex-[1.4]">
+                          <p className="text-xs text-muted-foreground mb-1">Weight</p>
+                          <div className="flex gap-1">
+                            <Input type="number" step="0.001" placeholder="0" className="flex-1" value={item.weight || ""}
+                              onChange={e => updateItem(i, "weight", parseFloat(e.target.value) || 0)} />
+                            <Tabs value={item.weight_unit || "gram"} onValueChange={v => updateItem(i, "weight_unit", v)}>
+                              <TabsList className="h-9">
+                                <TabsTrigger value="gram" className="text-xs px-2">g</TabsTrigger>
+                                <TabsTrigger value="ratti" className="text-xs px-2">r</TabsTrigger>
+                              </TabsList>
+                            </Tabs>
+                          </div>
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground mb-1">Unit Price</p>
@@ -509,6 +612,21 @@ const Purchases = () => {
                           <p className="font-semibold text-sm pt-2">{formatCurrency(item.total)}</p>
                         </div>
                       </div>
+                      {sourceType === "supplier" && (
+                        <div className="grid grid-cols-2 gap-2 items-end bg-amber-50/50 p-2 rounded border border-amber-200">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Kaat (e.g. 90)</p>
+                            <Input type="number" step="0.01" placeholder="0" value={item.kaat || ""}
+                              onChange={e => updateItem(i, "kaat", parseFloat(e.target.value) || 0)} />
+                          </div>
+                          {Number(item.kaat) > 0 && (
+                            <p className="text-xs text-amber-800">
+                              Cost Weight (auto): <strong>{Number(item.cost_weight || 0).toFixed(4)}g</strong>
+                              <br />Owed to supplier: {(Number(item.cost_weight || 0) * (item.quantity || 1)).toFixed(3)}g gold
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
