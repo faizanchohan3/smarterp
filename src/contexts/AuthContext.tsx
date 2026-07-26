@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -55,6 +55,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopAddress, setShopAddress] = useState<string | null>(null);
   const [shopPhone, setShopPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Tracks which user id we've already successfully loaded role/business
+  // data for, so a re-fired auth event for the *same* user (see below)
+  // can be told apart from a genuine new sign-in.
+  const loadedUserId = useRef<string | null>(null);
 
   const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
     const { data: roles, error: rolesErr } = await supabase
@@ -170,11 +175,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // any open form (a sale, a purchase, a payment) with no warning. Only
     // a genuine session establishment (sign-in, initial load) should ever
     // show the loading spinner / re-fetch role data.
+    //
+    // supabase-js also refires SIGNED_IN (and INITIAL_SESSION) when the tab
+    // regains focus/the network reconnects after being idle — not just on
+    // an actual new login. If we already loaded this exact user's data,
+    // treat that as a silent background refresh too instead of remounting
+    // the app and losing form state again.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
       if (event === "TOKEN_REFRESHED") {
+        return;
+      }
+
+      if (session?.user && loadedUserId.current === session.user.id) {
+        fetchUserData(session.user.id).catch(() => {});
         return;
       }
 
@@ -190,8 +206,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // (may be none, may be stale-but-fine) rather than hang. The user
           // can retry any action that actually needs fresh data.
         }
+        loadedUserId.current = session.user.id;
         setLoading(false);
       } else {
+        loadedUserId.current = null;
         setRole(null);
         setBusinessId(null);
         setBusinessStatus(null);
@@ -265,6 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    loadedUserId.current = null;
     setRole(null);
     setBusinessId(null);
     setBusinessStatus(null);
