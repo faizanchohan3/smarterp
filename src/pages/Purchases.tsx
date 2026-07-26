@@ -95,11 +95,12 @@ const Purchases = () => {
     }
 
     // Kaat auto-derives Cost Weight — the fine gold weight owed to the
-    // supplier. 96 ratti = 1 tola; Cost Weight (g) = (Weight-in-ratti / 96) x Kaat
+    // supplier. Cost Weight (g) = (Weight / 96) x Kaat — Weight used exactly
+    // as entered, no gram/ratti conversion (confirmed against the business's
+    // own example: 3.010 / 96 x 90 = 2.821).
     if (Number(updated[index].kaat) > 0) {
       const w = parseFloat(String(updated[index].weight)) || 0;
-      const weightRatti = updated[index].weight_unit === "ratti" ? w : w * RATTI_PER_GRAM;
-      updated[index].cost_weight = (weightRatti / 96) * Number(updated[index].kaat);
+      updated[index].cost_weight = (w / 96) * Number(updated[index].kaat);
     }
 
     // Price auto-calculates from Weight x today's gold rate, like Sales —
