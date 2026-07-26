@@ -34,6 +34,7 @@ interface AuthContextType {
   shopAddress: string | null;
   shopPhone: string | null;
   loading: boolean;
+  authTimedOut: boolean;
   signUp: (email: string, password: string, fullName: string, shopName: string, ownerName: string, phone: string, logoUrl?: string, address?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -55,6 +56,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopAddress, setShopAddress] = useState<string | null>(null);
   const [shopPhone, setShopPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Set when the role/business lookup has genuinely blown past a generous
+  // timeout (20s) — signals the loading screen to switch from "still
+  // working" to an explicit "couldn't load, please retry" state instead of
+  // spinning forever with no way out.
+  const [authTimedOut, setAuthTimedOut] = useState(false);
 
   // Tracks which user id we've already successfully loaded role/business
   // data for, so a re-fired auth event for the *same* user (see below)
@@ -214,19 +220,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (session?.user) {
         setLoading(true);
-        // Deliberately NOT capped with a "give up after N seconds" timeout
-        // here: an earlier version did that and it backfired — bailing out
-        // early with setLoading(false) while role/businessStatus were still
-        // null made the app briefly render the Pending-Approval screen
-        // (null status reads as "not approved") before the real, slower
-        // response finally landed a bit later and corrected it. Better to
-        // keep showing the spinner (App.tsx's own stuck-timer already
-        // offers a manual Reload after 8s) than to render a wrong screen.
-        await runFetchUserData(session.user.id);
-        loadedUserId.current = session.user.id;
-        setLoading(false);
+        setAuthTimedOut(false);
+        // A flat "give up after N seconds, then render the app anyway"
+        // approach backfired before: bailing out with setLoading(false)
+        // while role/businessStatus were still null made the app briefly
+        // render the Pending-Approval screen (null status reads as "not
+        // approved") before the real, slower response landed and corrected
+        // it a moment later. So on a genuine timeout we do NOT render the
+        // app or Pending with incomplete data — we flip authTimedOut so the
+        // UI can show an explicit "couldn't load, retry" state instead,
+        // while the fetch (deduped via runFetchUserData/inFlight) keeps
+        // running in the background and can still complete it normally.
+        try {
+          await withTimeout(runFetchUserData(session.user.id), 20000);
+          loadedUserId.current = session.user.id;
+          setLoading(false);
+        } catch {
+          setAuthTimedOut(true);
+          runFetchUserData(session.user.id)
+            .then(() => {
+              loadedUserId.current = session.user.id;
+              setAuthTimedOut(false);
+              setLoading(false);
+            })
+            .catch(() => {
+              setAuthTimedOut(true);
+            });
+        }
       } else {
         loadedUserId.current = null;
+        setAuthTimedOut(false);
         setRole(null);
         setBusinessId(null);
         setBusinessStatus(null);
@@ -312,7 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
+    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, authTimedOut, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
       {children}
     </AuthContext.Provider>
   );

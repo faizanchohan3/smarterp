@@ -58,7 +58,7 @@ import CustomOrderDetail from "./pages/CustomOrderDetail";
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
-  const { user, role, businessStatus, loading } = useAuth();
+  const { user, role, businessStatus, loading, authTimedOut } = useAuth();
 
   // Safety net: if a network hiccup (e.g. a hung supabase.auth.refreshSession()
   // call after the laptop/phone wakes from idle/sleep) leaves `loading` stuck
@@ -71,6 +71,26 @@ const AppRoutes = () => {
     const t = setTimeout(() => setStuck(true), 8000);
     return () => clearTimeout(t);
   }, [loading]);
+
+  if (authTimedOut) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
+        <div className="text-center space-y-3 max-w-sm">
+          <p className="text-sm font-medium">Couldn't load your account</p>
+          <p className="text-sm text-muted-foreground">
+            This is taking much longer than it should — likely a slow or
+            interrupted connection. Check your internet and try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
