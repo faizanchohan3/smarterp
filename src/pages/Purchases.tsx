@@ -51,6 +51,9 @@ const Purchases = () => {
   const [supplierId, setSupplierId] = useState("");
   const [formCustomerId, setFormCustomerId] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  // Defaults to today so a normal same-day purchase is unaffected; pick an
+  // earlier date to backdate an old purchase being entered late.
+  const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState<any[]>([]);
 
   // --- Add-to-stock dialog ---
@@ -138,6 +141,7 @@ const Purchases = () => {
     setPaidAmount("");
     setSourceType("supplier");
     setTolaRate("");
+    setPurchaseDate(new Date().toISOString().slice(0, 10));
   };
 
   // ─── Create purchase ─────────────────────────────────────────────────────────
@@ -151,6 +155,16 @@ const Purchases = () => {
     const invoiceNumber = `PUR-${Date.now().toString(36).toUpperCase()}`;
     const paymentStatus = paid >= totalAmount ? "full" : paid > 0 ? "partial" : "unpaid";
 
+    // Backdating an old purchase: keep today's time-of-day but swap in the
+    // chosen date, built from local Y/M/D (not `new Date("YYYY-MM-DD")`,
+    // which parses as UTC midnight and can shift a day off in local time).
+    let createdAt: string | undefined;
+    if (purchaseDate) {
+      const now = new Date();
+      const [y, m, d] = purchaseDate.split("-").map(Number);
+      createdAt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+    }
+
     const { data: purchase, error } = await (supabase.from("purchases") as any)
       .insert({
         business_id: businessId,
@@ -159,6 +173,7 @@ const Purchases = () => {
         total_amount: totalAmount,
         paid_amount: paid,
         payment_status: paymentStatus,
+        ...(createdAt ? { created_at: createdAt } : {}),
       })
       .select()
       .single();
@@ -490,15 +505,26 @@ const Purchases = () => {
               <DialogHeader><DialogTitle>Create Purchase Invoice</DialogTitle></DialogHeader>
               <div className="space-y-4">
 
-                <div className="space-y-2">
-                  <Label>Purchase From</Label>
-                  <div className="flex gap-2">
-                    <Button type="button" size="sm"
-                      variant={sourceType === "supplier" ? "default" : "outline"}
-                      onClick={() => { setSourceType("supplier"); setPaidAmount(""); }}>Supplier</Button>
-                    <Button type="button" size="sm"
-                      variant={sourceType === "customer" ? "default" : "outline"}
-                      onClick={() => setSourceType("customer")}>Customer</Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label>Purchase From</Label>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm"
+                        variant={sourceType === "supplier" ? "default" : "outline"}
+                        onClick={() => { setSourceType("supplier"); setPaidAmount(""); }}>Supplier</Button>
+                      <Button type="button" size="sm"
+                        variant={sourceType === "customer" ? "default" : "outline"}
+                        onClick={() => setSourceType("customer")}>Customer</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Purchase Date</Label>
+                    <Input
+                      type="date"
+                      value={purchaseDate}
+                      onChange={e => setPurchaseDate(e.target.value)}
+                      title="Purchase Date"
+                    />
                   </div>
                 </div>
 

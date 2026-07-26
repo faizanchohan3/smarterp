@@ -110,6 +110,9 @@ const Sales = () => {
   const [discount, setDiscount] = useState("0");
   const [paidAmount, setPaidAmount] = useState("");
   const [tolaRate, setTolaRate] = useState("");
+  // Defaults to today so nothing changes for a normal same-day sale; pick an
+  // earlier date here to backdate an old sale that's being entered late.
+  const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [repaymentDate, setRepaymentDate] = useState("");
   const [saleNote, setSaleNote] = useState("");
   const [items, setItems] = useState<SaleItem[]>([]);
@@ -225,6 +228,16 @@ const Sales = () => {
     const invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}`;
     const actualCustomerId = customerId && customerId !== "walk-in" ? customerId : null;
 
+    // Backdating an old sale: keep today's time-of-day but swap in the
+    // chosen date, built from local Y/M/D (not `new Date("YYYY-MM-DD")`,
+    // which parses as UTC midnight and can shift a day off in local time).
+    let createdAt: string | undefined;
+    if (saleDate) {
+      const now = new Date();
+      const [y, m, d] = saleDate.split("-").map(Number);
+      createdAt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+    }
+
     const { data: sale, error } = await (supabase.from("sales") as any).insert({
       business_id: businessId,
       customer_id: actualCustomerId,
@@ -237,6 +250,7 @@ const Sales = () => {
       tola_rate: parseFloat(tolaRate) || 0,
       repayment_date: repaymentDate || null,
       notes_internal: saleNote.trim() || null,
+      ...(createdAt ? { created_at: createdAt } : {}),
     }).select().single();
 
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -338,6 +352,7 @@ const Sales = () => {
     setDiscount("0");
     setPaidAmount("");
     setTolaRate("");
+    setSaleDate(new Date().toISOString().slice(0, 10));
     setRepaymentDate("");
     setSaleNote("");
     fetchSales();
@@ -477,9 +492,9 @@ const Sales = () => {
                     </div>
                     <Input
                       type="date"
-                      value={repaymentDate}
-                      onChange={e => setRepaymentDate(e.target.value)}
-                      title="Repayment Due Date"
+                      value={saleDate}
+                      onChange={e => setSaleDate(e.target.value)}
+                      title="Sale Date"
                     />
                   </div>
 
@@ -720,6 +735,17 @@ const Sales = () => {
                         Remaining: <span className={finalAmount - paid > 0 ? "text-destructive font-medium" : "text-success font-medium"}>{formatCurrency(Math.max(0, finalAmount - paid))}</span>
                         {" "}({paymentStatus})
                       </p>
+                      {finalAmount - paid > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Next Payment Due (optional)</p>
+                          <Input
+                            type="date"
+                            value={repaymentDate}
+                            onChange={e => setRepaymentDate(e.target.value)}
+                            title="Next Payment Due"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
