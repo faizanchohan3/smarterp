@@ -8,6 +8,18 @@ import { supabase } from "@/integrations/supabase/client";
 export const isJwtExpired = (err: any) =>
   !!err && (err.code === "PGRST301" || /jwt/i.test(err.message || ""));
 
+// A network call (refreshSession, or the whole fetchUserData chain) made
+// right after a laptop/phone wakes from sleep can hang indefinitely instead
+// of erroring — the OS reports "online" before the connection actually
+// works. Without a timeout, `await`-ing that call left `loading` stuck
+// true forever with no way out. Race every such call against a hard cutoff
+// so the app always eventually resolves one way or another.
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+
 type AppRole = "super_admin" | "business_admin" | "staff";
 
 interface AuthContextType {
@@ -52,8 +64,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (rolesErr) {
       if (isJwtExpired(rolesErr) && !alreadyRetried) {
-        const { error: refreshErr } = await supabase.auth.refreshSession();
-        if (!refreshErr) return fetchUserData(userId, true);
+        try {
+          const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
+          if (!refreshErr) return fetchUserData(userId, true);
+        } catch {
+          // refreshSession hung past the timeout — fall through and treat
+          // it the same as a failed refresh below.
+        }
       }
       // Token truly dead (refresh failed too) or a transient network error —
       // either way, don't wipe good state with a false "pending" render.
@@ -75,8 +92,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
-            const { error: refreshErr } = await supabase.auth.refreshSession();
-            if (!refreshErr) return fetchUserData(userId, true);
+            try {
+              const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
+              if (!refreshErr) return fetchUserData(userId, true);
+            } catch {
+              // hung past timeout, fall through
+            }
           }
           if (isJwtExpired(bizErr)) await supabase.auth.signOut();
           return;
@@ -97,8 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (bizErr) {
         if (isJwtExpired(bizErr) && !alreadyRetried) {
-          const { error: refreshErr } = await supabase.auth.refreshSession();
-          if (!refreshErr) return fetchUserData(userId, true);
+          try {
+            const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
+            if (!refreshErr) return fetchUserData(userId, true);
+          } catch {
+            // hung past timeout, fall through
+          }
         }
         if (isJwtExpired(bizErr)) await supabase.auth.signOut();
         return;
@@ -155,7 +180,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (session?.user) {
         setLoading(true);
-        await fetchUserData(session.user.id);
+        try {
+          // Cap the whole role/business lookup chain too, not just the
+          // refreshSession retries inside it — a hung query on wake-from-
+          // sleep should never leave the app stuck on the spinner forever.
+          await withTimeout(fetchUserData(session.user.id), 15000);
+        } catch {
+          // Timed out — leave whatever role/business state we already had
+          // (may be none, may be stale-but-fine) rather than hang. The user
+          // can retry any action that actually needs fresh data.
+        }
         setLoading(false);
       } else {
         setRole(null);

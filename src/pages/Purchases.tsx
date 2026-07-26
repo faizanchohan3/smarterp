@@ -495,7 +495,7 @@ const Purchases = () => {
                   <div className="flex gap-2">
                     <Button type="button" size="sm"
                       variant={sourceType === "supplier" ? "default" : "outline"}
-                      onClick={() => setSourceType("supplier")}>Supplier</Button>
+                      onClick={() => { setSourceType("supplier"); setPaidAmount(""); }}>Supplier</Button>
                     <Button type="button" size="sm"
                       variant={sourceType === "customer" ? "default" : "outline"}
                       onClick={() => setSourceType("customer")}>Customer</Button>
@@ -636,8 +636,14 @@ const Purchases = () => {
                   <div className="flex justify-between font-bold">
                     <span>Total</span><span>{formatCurrency(totalAmount)}</span>
                   </div>
-                  <Input placeholder="Paid Amount" type="number" value={paidAmount}
-                    onChange={e => setPaidAmount(e.target.value)} />
+                  {sourceType === "supplier" ? (
+                    <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                      Supplier purchases settle in gold only — no PKR payment is tracked here. See the Kaat/Cost Weight owed above.
+                    </p>
+                  ) : (
+                    <Input placeholder="Paid Amount" type="number" value={paidAmount}
+                      onChange={e => setPaidAmount(e.target.value)} />
+                  )}
                 </div>
 
                 <Button className="w-full" onClick={handleSubmit} disabled={items.length === 0}>
@@ -723,12 +729,18 @@ const Purchases = () => {
                     <span className="font-medium">{formatCurrency(editingPurchase.total_amount)}</span>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label>Paid Amount</Label>
-                  <Input type="number" value={editPaidAmount}
-                    onChange={e => setEditPaidAmount(e.target.value)} />
-                </div>
-                <Button className="w-full" onClick={handleEdit}>Update</Button>
+                {editingPurchase.supplier_id ? (
+                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                    Supplier purchases settle in gold only — no PKR payment to edit here. Check the supplier's ledger for gold owed.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    <Label>Paid Amount</Label>
+                    <Input type="number" value={editPaidAmount}
+                      onChange={e => setEditPaidAmount(e.target.value)} />
+                  </div>
+                )}
+                <Button className="w-full" onClick={handleEdit} disabled={!!editingPurchase.supplier_id}>Update</Button>
               </div>
             )}
           </DialogContent>
