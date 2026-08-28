@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -58,55 +57,12 @@ import CustomOrderDetail from "./pages/CustomOrderDetail";
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
-  const { user, role, businessStatus, loading, authTimedOut } = useAuth();
-
-  // Safety net: if a network hiccup (e.g. a hung supabase.auth.refreshSession()
-  // call after the laptop/phone wakes from idle/sleep) leaves `loading` stuck
-  // true forever, the whole app was previously just a spinner with no way
-  // out short of knowing to force-reload. After a few seconds, offer that
-  // reload explicitly instead of leaving the user stranded.
-  const [stuck, setStuck] = useState(false);
-  useEffect(() => {
-    if (!loading) { setStuck(false); return; }
-    const t = setTimeout(() => setStuck(true), 8000);
-    return () => clearTimeout(t);
-  }, [loading]);
-
-  if (authTimedOut) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4">
-        <div className="text-center space-y-3 max-w-sm">
-          <p className="text-sm font-medium">Couldn't load your account</p>
-          <p className="text-sm text-muted-foreground">
-            This is taking much longer than it should — likely a slow or
-            interrupted connection. Check your internet and try again.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const { user, role, businessStatus, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        {stuck && (
-          <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">Taking longer than usual…</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted"
-            >
-              Reload
-            </button>
-          </div>
-        )}
       </div>
     );
   }

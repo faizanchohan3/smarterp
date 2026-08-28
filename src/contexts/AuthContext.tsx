@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -7,18 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 // recover the same way instead of surfacing a raw cryptic toast.
 export const isJwtExpired = (err: any) =>
   !!err && (err.code === "PGRST301" || /jwt/i.test(err.message || ""));
-
-// A network call (refreshSession, or the whole fetchUserData chain) made
-// right after a laptop/phone wakes from sleep can hang indefinitely instead
-// of erroring — the OS reports "online" before the connection actually
-// works. Without a timeout, `await`-ing that call left `loading` stuck
-// true forever with no way out. Race every such call against a hard cutoff
-// so the app always eventually resolves one way or another.
-const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
-  Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
-  ]);
 
 type AppRole = "super_admin" | "business_admin" | "staff";
 
@@ -34,7 +22,6 @@ interface AuthContextType {
   shopAddress: string | null;
   shopPhone: string | null;
   loading: boolean;
-  authTimedOut: boolean;
   signUp: (email: string, password: string, fullName: string, shopName: string, ownerName: string, phone: string, logoUrl?: string, address?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -56,34 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [shopAddress, setShopAddress] = useState<string | null>(null);
   const [shopPhone, setShopPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  // Set when the role/business lookup has genuinely blown past a generous
-  // timeout (20s) — signals the loading screen to switch from "still
-  // working" to an explicit "couldn't load, please retry" state instead of
-  // spinning forever with no way out.
-  const [authTimedOut, setAuthTimedOut] = useState(false);
-
-  // Tracks which user id we've already successfully loaded role/business
-  // data for, so a re-fired auth event for the *same* user (see below)
-  // can be told apart from a genuine new sign-in.
-  const loadedUserId = useRef<string | null>(null);
-
-  // supabase-js can fire multiple auth events back-to-back on a fresh page
-  // load (e.g. INITIAL_SESSION immediately followed by SIGNED_IN) — without
-  // this, each one kicked off its own independent fetchUserData call for
-  // the same user, doubling load on the very request that's already slow
-  // on a cold refresh. Dedupe so overlapping calls share one in-flight
-  // request instead of racing.
-  const inFlight = useRef<{ userId: string; promise: Promise<void> } | null>(null);
-  const runFetchUserData = (userId: string): Promise<void> => {
-    if (inFlight.current && inFlight.current.userId === userId) {
-      return inFlight.current.promise;
-    }
-    const p = fetchUserData(userId).finally(() => {
-      if (inFlight.current?.promise === p) inFlight.current = null;
-    });
-    inFlight.current = { userId, promise: p };
-    return p;
-  };
 
   const fetchUserData = async (userId: string, alreadyRetried = false): Promise<void> => {
     const { data: roles, error: rolesErr } = await supabase
@@ -93,13 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (rolesErr) {
       if (isJwtExpired(rolesErr) && !alreadyRetried) {
-        try {
-          const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
-          if (!refreshErr) return fetchUserData(userId, true);
-        } catch {
-          // refreshSession hung past the timeout — fall through and treat
-          // it the same as a failed refresh below.
-        }
+        const { error: refreshErr } = await supabase.auth.refreshSession();
+        if (!refreshErr) return fetchUserData(userId, true);
       }
       // Token truly dead (refresh failed too) or a transient network error —
       // either way, don't wipe good state with a false "pending" render.
@@ -121,12 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (bizErr) {
           if (isJwtExpired(bizErr) && !alreadyRetried) {
-            try {
-              const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
-              if (!refreshErr) return fetchUserData(userId, true);
-            } catch {
-              // hung past timeout, fall through
-            }
+            const { error: refreshErr } = await supabase.auth.refreshSession();
+            if (!refreshErr) return fetchUserData(userId, true);
           }
           if (isJwtExpired(bizErr)) await supabase.auth.signOut();
           return;
@@ -147,12 +97,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (bizErr) {
         if (isJwtExpired(bizErr) && !alreadyRetried) {
-          try {
-            const { error: refreshErr } = await withTimeout(supabase.auth.refreshSession(), 6000);
-            if (!refreshErr) return fetchUserData(userId, true);
-          } catch {
-            // hung past timeout, fall through
-          }
+          const { error: refreshErr } = await supabase.auth.refreshSession();
+          if (!refreshErr) return fetchUserData(userId, true);
         }
         if (isJwtExpired(bizErr)) await supabase.auth.signOut();
         return;
@@ -184,72 +130,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // A single source of truth for session state. supabase-js v2 fires this
-    // listener immediately on subscribe with the current session (event
-    // INITIAL_SESSION) and again on every subsequent change — there is no
-    // need for a separate supabase.auth.getSession() call (having both
-    // raced independently here before, each calling fetchUserData and
-    // setLoading(false), which could land in the wrong order).
-    //
-    // Critically: TOKEN_REFRESHED fires periodically in the background
-    // (Supabase renews the JWT before it expires) even while the user is
-    // just sitting on a page mid-form, with role/businessStatus completely
-    // unchanged. Setting loading=true here was unmounting the entire routed
-    // page on every refresh — wiping out whatever the user had typed into
-    // any open form (a sale, a purchase, a payment) with no warning. Only
-    // a genuine session establishment (sign-in, initial load) should ever
-    // show the loading spinner / re-fetch role data.
-    //
-    // supabase-js also refires SIGNED_IN (and INITIAL_SESSION) when the tab
-    // regains focus/the network reconnects after being idle — not just on
-    // an actual new login. If we already loaded this exact user's data,
-    // treat that as a silent background refresh too instead of remounting
-    // the app and losing form state again.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-
-      if (event === "TOKEN_REFRESHED") {
-        return;
-      }
-
-      if (session?.user && loadedUserId.current === session.user.id) {
-        runFetchUserData(session.user.id).catch(() => {});
-        return;
-      }
-
       if (session?.user) {
+        // Show the loading spinner (not stale/blank role state) until the
+        // freshly logged-in user's role & business status are fetched —
+        // otherwise the app briefly renders "Pending Approval" or a 404
+        // using leftover state from before login.
         setLoading(true);
-        setAuthTimedOut(false);
-        // A flat "give up after N seconds, then render the app anyway"
-        // approach backfired before: bailing out with setLoading(false)
-        // while role/businessStatus were still null made the app briefly
-        // render the Pending-Approval screen (null status reads as "not
-        // approved") before the real, slower response landed and corrected
-        // it a moment later. So on a genuine timeout we do NOT render the
-        // app or Pending with incomplete data — we flip authTimedOut so the
-        // UI can show an explicit "couldn't load, retry" state instead,
-        // while the fetch (deduped via runFetchUserData/inFlight) keeps
-        // running in the background and can still complete it normally.
-        try {
-          await withTimeout(runFetchUserData(session.user.id), 20000);
-          loadedUserId.current = session.user.id;
+        setTimeout(async () => {
+          await fetchUserData(session.user.id);
           setLoading(false);
-        } catch {
-          setAuthTimedOut(true);
-          runFetchUserData(session.user.id)
-            .then(() => {
-              loadedUserId.current = session.user.id;
-              setAuthTimedOut(false);
-              setLoading(false);
-            })
-            .catch(() => {
-              setAuthTimedOut(true);
-            });
-        }
+        }, 0);
       } else {
-        loadedUserId.current = null;
-        setAuthTimedOut(false);
         setRole(null);
         setBusinessId(null);
         setBusinessStatus(null);
@@ -260,6 +154,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopPhone(null);
         setLoading(false);
       }
+    });
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -323,7 +226,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    loadedUserId.current = null;
     setRole(null);
     setBusinessId(null);
     setBusinessStatus(null);
@@ -335,7 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, authTimedOut, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
+    <AuthContext.Provider value={{ session, user, role, businessId, businessStatus, shopName, ownerName, shopLogo, shopAddress, shopPhone, loading, signUp, signIn, signOut, resetPassword, refreshBusiness }}>
       {children}
     </AuthContext.Provider>
   );
