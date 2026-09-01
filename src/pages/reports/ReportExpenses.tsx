@@ -15,7 +15,12 @@ const ReportExpenses = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // Purchases → "Record Sale" stores its result here too (category=
+  // 'purchase_resale', amount = sold price) so Purchases' own Sale/Profit
+  // column can find it -- but it's revenue, not an expense, so it's
+  // excluded from this report the same way ReportProfitLoss.tsx does.
   const filtered = expenses.filter((item: any) => {
+    if (item.category === "purchase_resale") return false;
     const date = new Date(item.date || item.created_at);
     if (dateFrom && date < new Date(dateFrom)) return false;
     if (dateTo && date > new Date(dateTo + "T23:59:59")) return false;

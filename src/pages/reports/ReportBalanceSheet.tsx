@@ -42,17 +42,27 @@ const ReportBalanceSheet = () => {
     return s + Math.max(0, bal);
   }, 0);
 
+  // Resale of a purchased item (Purchases → "Record Sale") is stored as an
+  // `expenses` row (category='purchase_resale') with amount = sold price —
+  // that's cash coming IN from the buyer, not an outflow, so it must be
+  // pulled out of the regular expenses total and counted as income instead
+  // (matching how ReportProfitLoss.tsx already treats it).
+  const resaleExpenses = expenses.filter((e: any) => e.category === "purchase_resale");
+  const resaleRevenue = resaleExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+  const regularExpenses = expenses.filter((e: any) => e.category !== "purchase_resale");
+
   // 1001 Cash / Shop Account: money in − money out
   const cashIn =
     sales.reduce((s: number, x: any) => s + Number(x.paid_amount || 0), 0) +
     payments.filter((p: any) => p.type === "customer_payment" && !p.sale_id).reduce((s: number, p: any) => s + Number(p.amount || 0), 0) +
     customOrders.reduce((s: number, o: any) => o.status === "cancelled" ? s : s + Number(o.advance_amount || 0) + Number(o.paid_amount || 0), 0) +
-    jobCards.reduce((s: number, j: any) => j.status === "cancelled" ? s : s + Number(j.advance_amount || 0), 0);
+    jobCards.reduce((s: number, j: any) => j.status === "cancelled" ? s : s + Number(j.advance_amount || 0), 0) +
+    resaleRevenue;
 
   const cashOut =
     purchases.reduce((s: number, p: any) => s + Number(p.paid_amount || 0), 0) +
     payments.filter((p: any) => ["supplier_payment", "karigar_payment"].includes(p.type)).reduce((s: number, p: any) => s + Number(p.amount || 0), 0) +
-    expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0); // salaries included via Salary expense entries
+    regularExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0); // salaries included via Salary expense entries
 
   const shopCash = cashIn - cashOut;
 
@@ -92,9 +102,9 @@ const ReportBalanceSheet = () => {
     if (o.status === "delivered") return s + Number(o.total_price || 0);
     return s + Number(o.advance_amount || 0) + Number(o.paid_amount || 0);
   }, 0);
-  const totalRevenue = totalSalesRev + repairIncome + customOrderIncome;
+  const totalRevenue = totalSalesRev + repairIncome + customOrderIncome + resaleRevenue;
   const totalPurchaseCost = purchases.reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
-  const totalExpenses = expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+  const totalExpenses = regularExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
   const netProfit = totalRevenue - totalPurchaseCost - totalExpenses;
 
   const ownerEquity = totalAssets - totalLiabilities;

@@ -35,7 +35,13 @@ const Expenses = () => {
     }
   };
 
-  const totalExpenses = data.reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+  // Purchases → "Record Sale" stores its result here too (category=
+  // 'purchase_resale', amount = sold price, profit tucked into a JSON
+  // description) so Purchases' own Sale/Profit column can find it -- but
+  // it's revenue, not an expense, and its raw JSON would otherwise show up
+  // as a garbled "description". Keep it out of this page entirely.
+  const regularExpenses = data.filter((e: any) => e.category !== "purchase_resale");
+  const totalExpenses = regularExpenses.reduce((sum: number, e: any) => sum + Number(e.amount), 0);
 
   const columns = [
     { key: "date", label: "Date", render: (v: string) => new Date(v).toLocaleDateString() },
@@ -71,7 +77,7 @@ const Expenses = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <DataTable columns={columns} data={data} onDelete={(row) => remove(row.id)} />
+        <DataTable columns={columns} data={regularExpenses} onDelete={(row) => remove(row.id)} />
       </div>
     </AppLayout>
   );

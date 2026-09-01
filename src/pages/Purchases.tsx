@@ -383,6 +383,15 @@ const Purchases = () => {
 
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
+    // Chart of Accounts: cash comes in for the sold price, recognized as
+    // revenue -- the original purchase cost is already posted as
+    // GOLD_PURCHASE when the purchase itself was created, so this alone
+    // is what makes the resale's profit/loss show up in the trial balance.
+    postAccountEntries(businessId, `Resale of ${selectedPurchase.invoice_number} to ${buyerName}`, [
+      { account: "CASH", debit: soldPriceNum },
+      { account: "GOLD_SALES", credit: soldPriceNum },
+    ]);
+
     toast({
       title: `Sale recorded! ${profit >= 0 ? "Profit" : "Loss"}: ${formatCurrency(Math.abs(profit))}`,
       description: profit >= 0 ? "Profitable transaction" : "Sold below purchase cost",
@@ -689,6 +698,15 @@ const Purchases = () => {
             setEditOpen(true);
           }}
           onDelete={handleDelete}
+          onSell={(row) => {
+            setSelectedPurchase(row);
+            setSoldPrice("");
+            setSoldToType("customer");
+            setSoldToCustomerId("");
+            setVendorName("");
+            setSoldNotes("");
+            setSoldOpen(true);
+          }}
         />
 
         {/* ── Add-to-stock dialog ── */}
