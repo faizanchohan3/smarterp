@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { postAccountEntries } from "@/lib/accounting";
-import { ArrowLeft, Printer, MessageSquare, Wallet, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, MessageSquare, Wallet, Trash2, Pencil } from "lucide-react";
 import QRCode from "qrcode";
 
 const TOLA_IN_GRAMS = 11.664;
@@ -60,6 +60,8 @@ const SaleDetail = () => {
   const [receivedBy, setReceivedBy] = useState<string>("");
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [printNote, setPrintNote] = useState("");
+  const [editDateOpen, setEditDateOpen] = useState(false);
+  const [editDateValue, setEditDateValue] = useState("");
 
   const sale = sales.find((s: any) => s.id === id);
   const customer = sale ? customers.find((c: any) => c.id === sale.customer_id) : null;
@@ -189,6 +191,26 @@ const SaleDetail = () => {
     setPayments(payData || []);
   };
 
+  // Fix a wrong date entered when the sale was created — keeps the original
+  // time-of-day, only swaps the Y/M/D (built from local parts, not
+  // `new Date("YYYY-MM-DD")`, which parses as UTC midnight and can shift a
+  // day off in local time zones).
+  const saveSaleDate = async () => {
+    if (!sale || !editDateValue) return;
+    const original = new Date(sale.created_at);
+    const [y, m, d] = editDateValue.split("-").map(Number);
+    const updated = new Date(y, m - 1, d, original.getHours(), original.getMinutes(), original.getSeconds());
+
+    const { error } = await (supabase.from("sales") as any)
+      .update({ created_at: updated.toISOString() })
+      .eq("id", sale.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+
+    toast({ title: "Sale date updated" });
+    setEditDateOpen(false);
+    refetchSales();
+  };
+
   // Undo everything this sale caused: restore stock for own-inventory items,
   // and remove every ledger entry it created (sale debit, payments, repayments,
   // supplier gold-owed for drop-ship items) — all reference the invoice number.
@@ -257,7 +279,20 @@ const SaleDetail = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">Invoice {sale.invoice_number}</h1>
-              <p className="text-sm text-muted-foreground">{new Date(sale.created_at).toLocaleDateString()}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground">{new Date(sale.created_at).toLocaleDateString()}</p>
+                <button
+                  type="button"
+                  title="Edit sale date"
+                  className="text-muted-foreground hover:text-primary"
+                  onClick={() => {
+                    setEditDateValue(new Date(sale.created_at).toISOString().slice(0, 10));
+                    setEditDateOpen(true);
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -338,6 +373,17 @@ const SaleDetail = () => {
                   <Printer className="w-4 h-4" /> Print
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── EDIT SALE DATE DIALOG ────────────────────────────────────────── */}
+        <Dialog open={editDateOpen} onOpenChange={setEditDateOpen}>
+          <DialogContent className="max-w-sm print:hidden">
+            <DialogHeader><DialogTitle>Edit Sale Date</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <Input type="date" value={editDateValue} onChange={e => setEditDateValue(e.target.value)} />
+              <Button className="w-full" onClick={saveSaleDate}>Save Date</Button>
             </div>
           </DialogContent>
         </Dialog>
