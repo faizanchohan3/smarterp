@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import ReportHeader from "@/components/shared/ReportHeader";
 import ReportFooter from "@/components/shared/ReportFooter";
@@ -27,12 +28,27 @@ const Row = ({ label, amount, sub, bold, color }: {
 
 const ReportProfitLoss = () => {
   const { data: sales } = useBusinessData("sales");
-  const { data: saleItems } = useBusinessData("sale_items");
   const { data: purchases } = useBusinessData("purchases");
   const { data: expenses } = useBusinessData("expenses");
   const { data: products } = useBusinessData("products");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // sale_items has no business_id column of its own (scoped indirectly via
+  // sale_id -> sales.business_id), so it can't go through useBusinessData's
+  // generic .eq("business_id", ...) filter -- that throws "column
+  // sale_items.business_id does not exist". Fetch it directly instead,
+  // scoped through this business's own (already-filtered) sale ids, same
+  // as SaleDetail.tsx does for a single sale.
+  const [saleItems, setSaleItems] = useState<any[]>([]);
+  useEffect(() => {
+    const saleIds = sales.map((s: any) => s.id);
+    if (saleIds.length === 0) { setSaleItems([]); return; }
+    (async () => {
+      const { data } = await (supabase.from("sale_items").select("*") as any).in("sale_id", saleIds);
+      setSaleItems(data || []);
+    })();
+  }, [sales]);
 
   const filterByDate = (items: any[]) => items.filter((item: any) => {
     const date = new Date(item.created_at || item.date);
