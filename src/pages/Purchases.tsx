@@ -24,7 +24,7 @@ const Purchases = () => {
   const { data: customers } = useBusinessData("customers");
   const { data: products, fetch: fetchProducts } = useBusinessData("products");
   const { data: categories } = useBusinessData("categories");
-  const { data: ledgerEntries } = useBusinessData("ledger_entries");
+  const { data: ledgerEntries, fetch: fetchLedger } = useBusinessData("ledger_entries");
   const { data: expenseData, fetch: fetchExpenses } = useBusinessData("expenses");
   const { data: goldRates } = useBusinessData("gold_rates" as any);
   const { businessId } = useAuth();
@@ -67,6 +67,11 @@ const Purchases = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState<any>(null);
   const [editPaidAmount, setEditPaidAmount] = useState("");
+  const [editTotalAmount, setEditTotalAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editSourceType, setEditSourceType] = useState<"supplier" | "customer">("supplier");
+  const [editSupplierId, setEditSupplierId] = useState("");
+  const [editCustomerId, setEditCustomerId] = useState("");
 
   // --- Sold dialog ---
   const [soldOpen, setSoldOpen] = useState(false);
@@ -303,16 +308,73 @@ const Purchases = () => {
 
   const handleEdit = async () => {
     if (!editingPurchase) return;
-    const newPaid = parseFloat(editPaidAmount) || 0;
-    const paymentStatus =
-      newPaid >= Number(editingPurchase.total_amount) ? "full" : newPaid > 0 ? "partial" : "unpaid";
+    const newTotal = parseFloat(editTotalAmount) || 0;
+    // Supplier purchases settle in gold only — paid_amount stays whatever it
+    // already was (0, normally); only customer/other purchases track a real
+    // PKR paid amount here.
+    const newPaid = editSourceType === "supplier" ? Number(editingPurchase.paid_amount) : (parseFloat(editPaidAmount) || 0);
+    const paymentStatus = newPaid >= newTotal ? "full" : newPaid > 0 ? "partial" : "unpaid";
+
+    // Backdating: keep the original time-of-day, only swap the date, built
+    // from local Y/M/D (not `new Date("YYYY-MM-DD")`, which parses as UTC
+    // midnight and can shift a day off in local time zones).
+    let createdAt: string | undefined;
+    if (editDate) {
+      const original = new Date(editingPurchase.created_at);
+      const [y, m, d] = editDate.split("-").map(Number);
+      createdAt = new Date(y, m - 1, d, original.getHours(), original.getMinutes(), original.getSeconds()).toISOString();
+    }
+
     const { error } = await (supabase.from("purchases") as any)
-      .update({ paid_amount: newPaid, payment_status: paymentStatus })
+      .update({
+        total_amount: newTotal,
+        paid_amount: newPaid,
+        payment_status: paymentStatus,
+        supplier_id: editSourceType === "supplier" ? (editSupplierId || null) : null,
+        ...(createdAt ? { created_at: createdAt } : {}),
+      })
       .eq("id", editingPurchase.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+
+    // Keep the linked ledger entry (what tracks the actual debt) in sync —
+    // otherwise the old supplier/customer or the old amount would still show
+    // up on Payables/Receivables/that party's ledger even though the
+    // purchase record itself now points elsewhere.
+    if (editSourceType === "supplier") {
+      const oldSupplierId = editingPurchase.supplier_id;
+      if (editSupplierId && editSupplierId !== oldSupplierId) {
+        await (supabase.from("ledger_entries") as any)
+          .update({ reference_id: editSupplierId })
+          .eq("business_id", businessId)
+          .eq("entry_type", "supplier")
+          .ilike("description", `%${editingPurchase.invoice_number}%`);
+      }
+    } else {
+      const src = getSource(editingPurchase);
+      const hadCustomerLedger = src.type === "customer" && !!src.id;
+      if (hadCustomerLedger) {
+        await (supabase.from("ledger_entries") as any)
+          .update({
+            credit: newTotal,
+            ...(editCustomerId && editCustomerId !== src.id ? { reference_id: editCustomerId } : {}),
+          })
+          .eq("business_id", businessId)
+          .eq("description", `CUST_PURCHASE:${editingPurchase.id}`);
+      } else if (editCustomerId) {
+        // No customer was linked at creation (e.g. it was recorded without
+        // picking one) — now that one's been set, add the ledger entry that
+        // should have existed from the start.
+        await (supabase.from("ledger_entries") as any).insert({
+          business_id: businessId, entry_type: "customer", reference_id: editCustomerId,
+          description: `CUST_PURCHASE:${editingPurchase.id}`, debit: 0, credit: newTotal, balance: 0,
+        });
+      }
+    }
+
     toast({ title: "Purchase updated" });
     setEditOpen(false);
     fetchPurchases();
+    fetchLedger();
   };
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -693,8 +755,14 @@ const Purchases = () => {
           columns={columns}
           data={purchases}
           onEdit={(row) => {
+            const src = getSource(row);
             setEditingPurchase(row);
             setEditPaidAmount(String(row.paid_amount));
+            setEditTotalAmount(String(row.total_amount));
+            setEditDate(new Date(row.created_at).toISOString().slice(0, 10));
+            setEditSourceType(src.type);
+            setEditSupplierId(src.type === "supplier" ? (src.id || "") : "");
+            setEditCustomerId(src.type === "customer" ? (src.id || "") : "");
             setEditOpen(true);
           }}
           onDelete={handleDelete}
@@ -763,17 +831,46 @@ const Purchases = () => {
             <DialogHeader><DialogTitle>Update Purchase</DialogTitle></DialogHeader>
             {editingPurchase && (
               <div className="space-y-3">
-                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                <div className="bg-muted/50 rounded-lg p-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Invoice</span>
                     <span className="font-medium">{editingPurchase.invoice_number}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-medium">{formatCurrency(editingPurchase.total_amount)}</span>
-                  </div>
                 </div>
-                {editingPurchase.supplier_id ? (
+
+                <div className="space-y-1">
+                  <Label>{editSourceType === "supplier" ? "Supplier" : "Customer"}</Label>
+                  {editSourceType === "supplier" ? (
+                    <Select value={editSupplierId} onValueChange={setEditSupplierId}>
+                      <SelectTrigger><SelectValue placeholder="Select Supplier (optional)" /></SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={editCustomerId} onValueChange={setEditCustomerId}>
+                      <SelectTrigger><SelectValue placeholder="Select Customer (optional)" /></SelectTrigger>
+                      <SelectContent>
+                        {customers.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Purchase Date</Label>
+                  <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} />
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Total Amount</Label>
+                  <Input type="number" value={editTotalAmount}
+                    onChange={e => setEditTotalAmount(e.target.value)} />
+                </div>
+
+                {editSourceType === "supplier" ? (
                   <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
                     Supplier purchases settle in gold only — no PKR payment to edit here. Check the supplier's ledger for gold owed.
                   </p>
@@ -784,7 +881,7 @@ const Purchases = () => {
                       onChange={e => setEditPaidAmount(e.target.value)} />
                   </div>
                 )}
-                <Button className="w-full" onClick={handleEdit} disabled={!!editingPurchase.supplier_id}>Update</Button>
+                <Button className="w-full" onClick={handleEdit}>Update</Button>
               </div>
             )}
           </DialogContent>
