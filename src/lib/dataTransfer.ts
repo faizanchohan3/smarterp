@@ -20,9 +20,29 @@ export interface ShopDataBundle {
   tables: Record<string, any[]>;
 }
 
+// sale_items and purchase_items have no business_id column of their own --
+// they're scoped indirectly via sale_id -> sales.business_id / purchase_id
+// -> purchases.business_id -- so they can't be filtered with .eq("business_id",
+// ...) like every other table. Scope them via the parent ids instead (both
+// parents are exported earlier in TABLES, so they're already in `tables`).
+const CHILD_SCOPE: Partial<Record<TableName, { parentField: string; parentTable: TableName }>> = {
+  sale_items: { parentField: "sale_id", parentTable: "sales" },
+  purchase_items: { parentField: "purchase_id", parentTable: "purchases" },
+};
+
 export async function exportBusinessData(businessId: string, shopName: string): Promise<ShopDataBundle> {
   const tables: Record<string, any[]> = {};
   for (const table of TABLES) {
+    const childScope = CHILD_SCOPE[table];
+    if (childScope) {
+      const parentIds = (tables[childScope.parentTable] || []).map((r: any) => r.id);
+      if (parentIds.length === 0) { tables[table] = []; continue; }
+      const { data, error } = await (supabase.from(table as any) as any)
+        .select("*").in(childScope.parentField, parentIds);
+      if (error) throw new Error(`Failed exporting ${table}: ${error.message}`);
+      tables[table] = data || [];
+      continue;
+    }
     const { data, error } = await (supabase.from(table as any) as any).select("*").eq("business_id", businessId);
     if (error) throw new Error(`Failed exporting ${table}: ${error.message}`);
     tables[table] = data || [];
@@ -138,7 +158,11 @@ export async function importBusinessData(businessId: string, bundle: ShopDataBun
 
       const newId = crypto.randomUUID();
       idMaps[table].set(oldId, newId);
-      const clean: any = { ...row, id: newId, business_id: businessId };
+      const clean: any = { ...row, id: newId };
+      // sale_items/purchase_items have no business_id column -- they're
+      // scoped only via their parent row, which already got the new
+      // business_id when it was imported.
+      if (!CHILD_SCOPE[table]) clean.business_id = businessId;
 
       for (const rule of fkRules) {
         const oldVal = row[rule.field];
