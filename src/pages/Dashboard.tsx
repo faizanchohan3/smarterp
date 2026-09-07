@@ -108,9 +108,9 @@ const Dashboard = () => {
 
     const fetchStats = async () => {
       const [salesRes, purchasesRes, expensesRes, customersRes] = await Promise.all([
-        supabase.from("sales").select("id, invoice_number, customer_id, final_amount, paid_amount, created_at, repayment_date").eq("business_id", businessId),
+        supabase.from("sales").select("id, invoice_number, customer_id, final_amount, paid_amount, created_at, repayment_date, tola_rate").eq("business_id", businessId),
         supabase.from("purchases").select("total_amount, paid_amount, created_at").eq("business_id", businessId),
-        supabase.from("expenses").select("amount, created_at, category").eq("business_id", businessId),
+        supabase.from("expenses").select("amount, date, created_at, category, description").eq("business_id", businessId),
         supabase.from("customers").select("id, name").eq("business_id", businessId),
       ]);
 
@@ -121,15 +121,48 @@ const Dashboard = () => {
 
       const monthSales = (salesRes.data || []).filter((s: any) => inThisMonth(s.created_at));
       const monthPurchases = (purchasesRes.data || []).filter((p: any) => inThisMonth(p.created_at));
+      // Expenses have their own user-picked `date` field, separate from
+      // `created_at` (when the row happened to be saved) — filter by that,
+      // same as the Expenses report does, so a backdated expense lands in
+      // the month it's actually for.
+      const monthExpensesAll = (expensesRes.data || []).filter((e: any) => inThisMonth(e.date || e.created_at));
       // Purchases → "Record Sale" stores its result as an expenses row too
-      // (category="purchase_resale", amount=sold price) — that's revenue,
-      // not a real expense, so it's excluded here same as every other page
-      // that totals expenses (Expenses, Profit & Loss, Balance Sheet).
-      const monthExpenses = (expensesRes.data || []).filter((e: any) => inThisMonth(e.created_at) && e.category !== "purchase_resale");
+      // (category="purchase_resale", amount=sold price, profit tucked into
+      // a JSON description) — that's revenue on a resale, not a real
+      // expense, so it's split out here rather than counted as one, same
+      // as the Profit & Loss report.
+      const monthExpenses = monthExpensesAll.filter((e: any) => e.category !== "purchase_resale");
+      const monthResales = monthExpensesAll.filter((e: any) => e.category === "purchase_resale");
 
       const totalSales = monthSales.reduce((sum, s: any) => sum + Number(s.final_amount), 0);
       const totalPurchases = monthPurchases.reduce((sum, p: any) => sum + Number(p.total_amount), 0);
       const totalExpenses = monthExpenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
+      const resaleProfit = monthResales.reduce((sum, e: any) => {
+        try { return sum + (JSON.parse(e.description || "{}").profit || 0); } catch { return sum; }
+      }, 0);
+
+      // Profit — same formula as the Profit & Loss report: sale margin (sale
+      // price minus the gold cost basis of what was actually sold) + resale
+      // profit, minus real expenses. NOT total sales minus total purchases
+      // minus expenses — that conflates "bought inventory this month" with
+      // "cost of what was sold this month" and swings wildly with buying activity.
+      const saleIds = monthSales.map((s: any) => s.id);
+      let costOfGoodsSold = 0;
+      if (saleIds.length > 0) {
+        const { data: items } = await (supabase.from("sale_items").select("sale_id, cost_weight, cost_price, quantity") as any).in("sale_id", saleIds);
+        const saleById = new Map(monthSales.map((s: any) => [s.id, s]));
+        const TOLA_IN_GRAMS = 11.664;
+        costOfGoodsSold = (items || []).reduce((sum: number, it: any) => {
+          const sale = saleById.get(it.sale_id);
+          const tolaRate = Number(sale?.tola_rate) || 0;
+          const qty = Number(it.quantity) || 1;
+          if (Number(it.cost_weight) > 0 && tolaRate > 0) return sum + (Number(it.cost_weight) / TOLA_IN_GRAMS) * tolaRate * qty;
+          if (Number(it.cost_price) > 0) return sum + Number(it.cost_price) * qty;
+          return sum;
+        }, 0);
+      }
+      const salesProfit = totalSales - costOfGoodsSold;
+      const profit = salesProfit + resaleProfit - totalExpenses;
 
       // Receivable / Payable: FULL all-time totals (not month-limited)
       const receivable = (salesRes.data?.reduce((sum, s) => sum + (Number(s.final_amount) - Number(s.paid_amount)), 0)) || 0;
@@ -139,7 +172,7 @@ const Dashboard = () => {
         sales: totalSales,
         purchases: totalPurchases,
         expenses: totalExpenses,
-        profit: totalSales - totalPurchases - totalExpenses,
+        profit,
         receivable,
         payable,
       });
