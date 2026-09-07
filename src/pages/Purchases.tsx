@@ -516,6 +516,7 @@ const Purchases = () => {
   const resalesAll = expenseData.filter((e: any) => e.category === "purchase_resale");
   const resales = (dateFrom || dateTo) ? resalesAll.filter((e: any) => inDateRange(e.date || e.created_at)) : resalesAll;
   const totalPurchaseAmount = filteredPurchases.reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0);
+  const totalPaidAmount = filteredPurchases.reduce((sum: number, p: any) => sum + Number(p.paid_amount || 0), 0);
   const totalSoldPrice = resales.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
   const totalProfitInPurchase = resales.reduce((sum: number, e: any) => sum + parseResaleProfit(e), 0);
 
@@ -571,7 +572,7 @@ const Purchases = () => {
       ),
     },
     {
-      key: "id", label: "Sold Price",
+      key: "sold_price", label: "Sold Price",
       render: (_: any, row: any) => {
         const resale = getResale(row.id);
         if (!resale) return <span className="text-xs text-muted-foreground">—</span>;
@@ -579,7 +580,7 @@ const Purchases = () => {
       },
     },
     {
-      key: "id", label: "Profit",
+      key: "profit", label: "Profit",
       render: (_: any, row: any) => {
         const resale = getResale(row.id);
         if (!resale) return <span className="text-xs text-muted-foreground">—</span>;
@@ -811,6 +812,12 @@ const Purchases = () => {
         <DataTable
           columns={columns}
           data={filteredPurchases}
+          totals={{
+            total_amount: formatCurrency(totalPurchaseAmount),
+            paid_amount: formatCurrency(totalPaidAmount),
+            sold_price: formatCurrency(totalSoldPrice),
+            profit: formatCurrency(totalProfitInPurchase),
+          }}
           onEdit={(row) => {
             const src = getSource(row);
             setEditingPurchase(row);
