@@ -110,7 +110,7 @@ const Dashboard = () => {
       const [salesRes, purchasesRes, expensesRes, customersRes] = await Promise.all([
         supabase.from("sales").select("id, invoice_number, customer_id, final_amount, paid_amount, created_at, repayment_date").eq("business_id", businessId),
         supabase.from("purchases").select("total_amount, paid_amount, created_at").eq("business_id", businessId),
-        supabase.from("expenses").select("amount, created_at").eq("business_id", businessId),
+        supabase.from("expenses").select("amount, created_at, category").eq("business_id", businessId),
         supabase.from("customers").select("id, name").eq("business_id", businessId),
       ]);
 
@@ -121,7 +121,11 @@ const Dashboard = () => {
 
       const monthSales = (salesRes.data || []).filter((s: any) => inThisMonth(s.created_at));
       const monthPurchases = (purchasesRes.data || []).filter((p: any) => inThisMonth(p.created_at));
-      const monthExpenses = (expensesRes.data || []).filter((e: any) => inThisMonth(e.created_at));
+      // Purchases → "Record Sale" stores its result as an expenses row too
+      // (category="purchase_resale", amount=sold price) — that's revenue,
+      // not a real expense, so it's excluded here same as every other page
+      // that totals expenses (Expenses, Profit & Loss, Balance Sheet).
+      const monthExpenses = (expensesRes.data || []).filter((e: any) => inThisMonth(e.created_at) && e.category !== "purchase_resale");
 
       const totalSales = monthSales.reduce((sum, s: any) => sum + Number(s.final_amount), 0);
       const totalPurchases = monthPurchases.reduce((sum, p: any) => sum + Number(p.total_amount), 0);
