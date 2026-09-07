@@ -571,7 +571,15 @@ const Purchases = () => {
       ),
     },
     {
-      key: "id", label: "Sale / Profit",
+      key: "id", label: "Sold Price",
+      render: (_: any, row: any) => {
+        const resale = getResale(row.id);
+        if (!resale) return <span className="text-xs text-muted-foreground">—</span>;
+        return <span className="text-xs font-semibold">{formatCurrency(Number(resale.amount))}</span>;
+      },
+    },
+    {
+      key: "id", label: "Profit",
       render: (_: any, row: any) => {
         const resale = getResale(row.id);
         if (!resale) return <span className="text-xs text-muted-foreground">—</span>;
