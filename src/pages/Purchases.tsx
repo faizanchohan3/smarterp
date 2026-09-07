@@ -494,9 +494,22 @@ const Purchases = () => {
     try { return JSON.parse(expense.description || "{}").profit || 0; } catch { return 0; }
   };
 
+  // ─── Date filter ────────────────────────────────────────────────────────────
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const inDateRange = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (dateFrom && d < new Date(dateFrom)) return false;
+    if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
+    return true;
+  };
+  const filteredPurchases = (dateFrom || dateTo) ? purchases.filter((p: any) => inDateRange(p.created_at)) : purchases;
+
   // ─── Summary cards ──────────────────────────────────────────────────────────
-  const resales = expenseData.filter((e: any) => e.category === "purchase_resale");
-  const totalPurchaseAmount = purchases.reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0);
+  const resalesAll = expenseData.filter((e: any) => e.category === "purchase_resale");
+  const resales = (dateFrom || dateTo) ? resalesAll.filter((e: any) => inDateRange(e.date || e.created_at)) : resalesAll;
+  const totalPurchaseAmount = filteredPurchases.reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0);
   const totalSoldPrice = resales.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
   const totalProfitInPurchase = resales.reduce((sum: number, e: any) => sum + parseResaleProfit(e), 0);
 
@@ -758,6 +771,16 @@ const Purchases = () => {
           </Dialog>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Date range</Label>
+          <Input type="date" className="w-auto" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <span className="text-muted-foreground text-sm">→</span>
+          <Input type="date" className="w-auto" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear</Button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <StatCard title="Total Purchase" value={formatCurrency(totalPurchaseAmount)} icon={Receipt} gradient="purple" />
           <StatCard title="Total Sold Price" value={formatCurrency(totalSoldPrice)} subtitle={`${resales.length} resale${resales.length === 1 ? "" : "s"}`} icon={Tag} gradient="teal" />
@@ -766,7 +789,7 @@ const Purchases = () => {
 
         <DataTable
           columns={columns}
-          data={purchases}
+          data={filteredPurchases}
           onEdit={(row) => {
             const src = getSource(row);
             setEditingPurchase(row);
