@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import DataTable from "@/components/shared/DataTable";
+import StatCard from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import { postAccountEntries } from "@/lib/accounting";
 import { TOLA_TO_GRAM, RATTI_PER_GRAM, getLatestRate } from "@/lib/gold";
-import { Plus, Trash2, Package, Archive } from "lucide-react";
+import { Plus, Trash2, Package, Archive, Receipt, Tag, TrendingUp, TrendingDown } from "lucide-react";
 
 const Purchases = () => {
   const navigate = useNavigate();
@@ -493,6 +494,12 @@ const Purchases = () => {
     try { return JSON.parse(expense.description || "{}").profit || 0; } catch { return 0; }
   };
 
+  // ─── Summary cards ──────────────────────────────────────────────────────────
+  const resales = expenseData.filter((e: any) => e.category === "purchase_resale");
+  const totalPurchaseAmount = purchases.reduce((sum: number, p: any) => sum + Number(p.total_amount || 0), 0);
+  const totalSoldPrice = resales.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+  const totalProfitInPurchase = resales.reduce((sum: number, e: any) => sum + parseResaleProfit(e), 0);
+
   const profitPreview = soldPrice && selectedPurchase
     ? parseFloat(soldPrice) - Number(selectedPurchase.total_amount)
     : null;
@@ -749,6 +756,12 @@ const Purchases = () => {
               </div>
             </DialogContent>
           </Dialog>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <StatCard title="Total Purchase" value={formatCurrency(totalPurchaseAmount)} icon={Receipt} gradient="purple" />
+          <StatCard title="Total Sold Price" value={formatCurrency(totalSoldPrice)} subtitle={`${resales.length} resale${resales.length === 1 ? "" : "s"}`} icon={Tag} gradient="teal" />
+          <StatCard title="Total Profit in Purchase" value={formatCurrency(totalProfitInPurchase)} icon={totalProfitInPurchase >= 0 ? TrendingUp : TrendingDown} gradient={totalProfitInPurchase >= 0 ? "green" : "red"} />
         </div>
 
         <DataTable
