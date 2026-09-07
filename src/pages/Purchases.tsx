@@ -504,7 +504,13 @@ const Purchases = () => {
     if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
     return true;
   };
-  const filteredPurchases = (dateFrom || dateTo) ? purchases.filter((p: any) => inDateRange(p.created_at)) : purchases;
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const filteredPurchases = ((dateFrom || dateTo) ? purchases.filter((p: any) => inDateRange(p.created_at)) : purchases)
+    .slice()
+    .sort((a: any, b: any) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === "asc" ? diff : -diff;
+    });
 
   // ─── Summary cards ──────────────────────────────────────────────────────────
   const resalesAll = expenseData.filter((e: any) => e.category === "purchase_resale");
@@ -779,6 +785,13 @@ const Purchases = () => {
           {(dateFrom || dateTo) && (
             <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear</Button>
           )}
+          <Select value={sortOrder} onValueChange={(v: any) => setSortOrder(v)}>
+            <SelectTrigger className="w-auto min-w-[9.5rem]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Newest first</SelectItem>
+              <SelectItem value="asc">Oldest first</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">

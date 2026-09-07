@@ -392,10 +392,17 @@ const Sales = () => {
     fetchSales();
   };
 
-  const salesWithStatus = sales.map((s: any) => ({
-    ...s,
-    computed_status: getPaymentStatus(Number(s.paid_amount), Number(s.final_amount)),
-  }));
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const salesWithStatus = sales
+    .map((s: any) => ({
+      ...s,
+      computed_status: getPaymentStatus(Number(s.paid_amount), Number(s.final_amount)),
+    }))
+    .slice()
+    .sort((a: any, b: any) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === "asc" ? diff : -diff;
+    });
 
   const columns = [
     { key: "invoice_number", label: "Invoice #" },
@@ -762,6 +769,15 @@ const Sales = () => {
           <StatCard title="Received" value={formatCurrency(totalReceived)} icon={Wallet} gradient="green" />
           <StatCard title="Remaining" value={formatCurrency(totalRemaining)} icon={ArrowDownCircle} gradient="amber" />
           <StatCard title="Invoices" value={String(sales.length)} icon={Printer} gradient="purple" />
+        </div>
+        <div className="flex justify-end print:hidden">
+          <Select value={sortOrder} onValueChange={(v: any) => setSortOrder(v)}>
+            <SelectTrigger className="w-auto min-w-[9.5rem]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Newest first</SelectItem>
+              <SelectItem value="asc">Oldest first</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <DataTable
           columns={columns}
