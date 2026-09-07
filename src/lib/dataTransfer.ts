@@ -4,10 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 // import walk this list in order, so on import every foreign key a row
 // needs has already been assigned its new id by the time that row is
 // inserted.
+// Note: purchase_sales isn't included here — its migration was never
+// applied to the live database (and the app doesn't use it; resale
+// tracking goes through `expenses` with category "purchase_resale"
+// instead), so querying it 404s with "table not found in schema cache".
 const TABLES = [
   "categories", "customers", "suppliers", "employees", "karigars",
   "chart_of_accounts", "products", "gold_rates", "sales", "purchases",
-  "sale_items", "purchase_items", "purchase_sales", "expenses", "salaries",
+  "sale_items", "purchase_items", "expenses", "salaries",
   "job_cards", "custom_orders", "payments", "ledger_entries",
 ] as const;
 
@@ -82,7 +86,6 @@ const FK_MAP: Partial<Record<TableName, { field: string; table: TableName }[]>> 
   purchases: [{ field: "supplier_id", table: "suppliers" }, { field: "customer_id", table: "customers" }],
   sale_items: [{ field: "sale_id", table: "sales" }, { field: "product_id", table: "products" }],
   purchase_items: [{ field: "purchase_id", table: "purchases" }, { field: "product_id", table: "products" }],
-  purchase_sales: [{ field: "purchase_id", table: "purchases" }, { field: "customer_id", table: "customers" }],
   salaries: [{ field: "employee_id", table: "employees" }],
   job_cards: [{ field: "karigar_id", table: "karigars" }, { field: "customer_id", table: "customers" }],
   custom_orders: [{ field: "customer_id", table: "customers" }, { field: "karigar_id", table: "karigars" }],
