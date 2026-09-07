@@ -1,23 +1,90 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/layout/AppLayout";
 import StatCard from "@/components/shared/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Receipt, Wallet, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, BellRing } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart, Receipt, Wallet, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, BellRing, Download, Upload, Database } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/currency";
 import { formatRateTime } from "@/lib/gold";
 import { toast } from "sonner";
+import {
+  exportBusinessData, downloadShopData, countRecords, recordCountsByTable,
+  importBusinessData, type ShopDataBundle,
+} from "@/lib/dataTransfer";
 
 const Dashboard = () => {
-  const { businessId } = useAuth();
+  const { businessId, shopName } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ sales: 0, purchases: 0, expenses: 0, profit: 0, receivable: 0, payable: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [dueSoon, setDueSoon] = useState<any[]>([]);
   const [latestRate, setLatestRate] = useState<any>(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    if (!businessId) return;
+    setExporting(true);
+    try {
+      const bundle = await exportBusinessData(businessId, shopName || "shop");
+      const total = countRecords(bundle);
+      if (total === 0) {
+        toast.warning("Nothing to export — this shop has no data yet.");
+        return;
+      }
+      downloadShopData(bundle);
+      toast.success(`Exported ${total} records`, { description: "Download started." });
+    } catch (err: any) {
+      toast.error("Export failed", { description: err.message });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (!businessId) return;
+    let bundle: ShopDataBundle;
+    try {
+      bundle = JSON.parse(await file.text());
+      if (!bundle || bundle.version !== 1 || !bundle.tables) throw new Error("Not a recognised shop data export file.");
+    } catch (err: any) {
+      toast.error("Import failed", { description: err.message || "Invalid file." });
+      return;
+    }
+
+    const total = countRecords(bundle);
+    if (total === 0) {
+      toast.warning("That file has no records to import.");
+      return;
+    }
+    const breakdown = recordCountsByTable(bundle).map(([t, n]) => `${t}: ${n}`).join("\n");
+    const ok = window.confirm(
+      `Import ${total} records from "${bundle.shop_name}" into this shop?\n\n${breakdown}\n\n` +
+      `This adds to whatever is already in this shop — it does not remove or overwrite existing data. This cannot be undone.`
+    );
+    if (!ok) return;
+
+    setImporting(true);
+    try {
+      const result = await importBusinessData(businessId, bundle);
+      const insertedTotal = Object.values(result.inserted).reduce((a, b) => a + b, 0);
+      const skippedTotal = Object.values(result.skipped).reduce((a, b) => a + b, 0);
+      toast.success(`Imported ${insertedTotal} records`, {
+        description: skippedTotal > 0 ? `${skippedTotal} records were skipped (duplicate/invalid).` : "All records imported.",
+        duration: 6000,
+      });
+      window.location.reload();
+    } catch (err: any) {
+      toast.error("Import failed partway through", { description: err.message });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!businessId) return;
@@ -125,6 +192,35 @@ const Dashboard = () => {
             <p className="text-sm text-amber-100/80 mt-1">Your gold business at a glance</p>
           </div>
         </div>
+
+        <Card className="border-amber-500/20 shadow-soft">
+          <CardContent className="p-3 sm:p-4 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Database className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              Shop Data Backup
+              <span className="text-xs font-normal text-muted-foreground hidden sm:inline">— export everything, or import another shop's export into this one</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleExport} disabled={exporting}>
+                <Download className="w-4 h-4" /> {exporting ? "Exporting…" : "Export Data"}
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => importInputRef.current?.click()} disabled={importing}>
+                <Upload className="w-4 h-4" /> {importing ? "Importing…" : "Import Data"}
+              </Button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImportFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {latestRate && (
           <Card className="border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-yellow-400/10 to-orange-500/10 shadow-soft">
