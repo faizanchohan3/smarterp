@@ -497,11 +497,16 @@ const Purchases = () => {
   // ─── Date filter ────────────────────────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // Local calendar-day boundaries (not `new Date("2026-08-01")`, which
+  // parses as UTC midnight and can shift the window off by the local UTC
+  // offset, dropping rows right at the edges of the range).
+  const startOfDay = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d, 0, 0, 0, 0); };
+  const endOfDay = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d, 23, 59, 59, 999); };
   const inDateRange = (dateStr?: string) => {
     if (!dateStr) return false;
     const d = new Date(dateStr);
-    if (dateFrom && d < new Date(dateFrom)) return false;
-    if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
+    if (dateFrom && d < startOfDay(dateFrom)) return false;
+    if (dateTo && d > endOfDay(dateTo)) return false;
     return true;
   };
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");

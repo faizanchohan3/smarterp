@@ -54,10 +54,19 @@ const ReportProfitLoss = () => {
   // created_at (when the row was saved) -- `item.created_at || item.date`
   // always picked created_at (it's never falsy), so date-range filtering
   // silently ignored the actual expense date. `date` must come first.
+  //
+  // Boundaries: `new Date("2026-08-01")` (date-only string) parses as UTC
+  // midnight, while `new Date("2026-08-01T23:59:59")` (no "Z") parses as
+  // local time -- two different parse rules for the two ends of the same
+  // range, which quietly shifts the window by the local UTC offset and can
+  // drop rows right at the edges. Build both ends as explicit local
+  // calendar-day boundaries from the Y/M/D parts instead.
+  const startOfDay = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d, 0, 0, 0, 0); };
+  const endOfDay = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d, 23, 59, 59, 999); };
   const filterByDate = (items: any[]) => items.filter((item: any) => {
     const date = new Date(item.date || item.created_at);
-    if (dateFrom && date < new Date(dateFrom)) return false;
-    if (dateTo && date > new Date(dateTo + "T23:59:59")) return false;
+    if (dateFrom && date < startOfDay(dateFrom)) return false;
+    if (dateTo && date > endOfDay(dateTo)) return false;
     return true;
   });
 
