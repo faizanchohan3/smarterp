@@ -50,8 +50,12 @@ const ReportProfitLoss = () => {
     })();
   }, [sales]);
 
+  // expenses rows have their own user-picked `date` field, separate from
+  // created_at (when the row was saved) -- `item.created_at || item.date`
+  // always picked created_at (it's never falsy), so date-range filtering
+  // silently ignored the actual expense date. `date` must come first.
   const filterByDate = (items: any[]) => items.filter((item: any) => {
-    const date = new Date(item.created_at || item.date);
+    const date = new Date(item.date || item.created_at);
     if (dateFrom && date < new Date(dateFrom)) return false;
     if (dateTo && date > new Date(dateTo + "T23:59:59")) return false;
     return true;
