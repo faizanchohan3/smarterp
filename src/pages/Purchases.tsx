@@ -804,10 +804,14 @@ const Purchases = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <StatCard title="Total Purchase" value={formatCurrency(totalPurchaseAmount)} icon={Receipt} gradient="purple" />
+          <StatCard title="Total Purchase" value={formatCurrency(totalPurchaseAmount)} subtitle={`${filteredPurchases.length} transaction${filteredPurchases.length === 1 ? "" : "s"}`} icon={Receipt} gradient="purple" />
           <StatCard title="Total Sold Price" value={formatCurrency(totalSoldPrice)} subtitle={`${resales.length} resale${resales.length === 1 ? "" : "s"}`} icon={Tag} gradient="teal" />
           <StatCard title="Total Profit in Purchase" value={formatCurrency(totalProfitInPurchase)} icon={totalProfitInPurchase >= 0 ? TrendingUp : TrendingDown} gradient={totalProfitInPurchase >= 0 ? "green" : "red"} />
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          Showing {filteredPurchases.length} row{filteredPurchases.length === 1 ? "" : "s"}
+        </p>
 
         <DataTable
           columns={columns}
