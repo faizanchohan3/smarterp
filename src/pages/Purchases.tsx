@@ -82,6 +82,7 @@ const Purchases = () => {
   const [soldToCustomerId, setSoldToCustomerId] = useState("");
   const [vendorName, setVendorName] = useState("");
   const [soldNotes, setSoldNotes] = useState("");
+  const [soldDate, setSoldDate] = useState(new Date().toISOString().split("T")[0]);
 
   // ─── Form helpers ────────────────────────────────────────────────────────────
 
@@ -432,7 +433,7 @@ const Purchases = () => {
       business_id: businessId,
       category: "purchase_resale",
       amount: soldPriceNum,
-      date: new Date().toISOString().split("T")[0],
+      date: soldDate || new Date().toISOString().split("T")[0],
       description: JSON.stringify({
         purchase_id: selectedPurchase.id,
         profit,
@@ -465,6 +466,7 @@ const Purchases = () => {
     setSoldToCustomerId("");
     setVendorName("");
     setSoldNotes("");
+    setSoldDate(new Date().toISOString().split("T")[0]);
     fetchExpenses();
   };
 
@@ -846,6 +848,7 @@ const Purchases = () => {
             setSoldToCustomerId("");
             setVendorName("");
             setSoldNotes("");
+            setSoldDate(new Date().toISOString().split("T")[0]);
             setSoldOpen(true);
           }}
         />
@@ -987,6 +990,11 @@ const Purchases = () => {
                       {profitPreview >= 0 ? "Profit" : "Loss"}: {formatCurrency(Math.abs(profitPreview))}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Sold Date</Label>
+                  <Input type="date" value={soldDate} onChange={e => setSoldDate(e.target.value)} />
                 </div>
 
                 <div className="space-y-2">
