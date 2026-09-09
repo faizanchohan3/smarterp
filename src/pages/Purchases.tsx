@@ -393,7 +393,11 @@ const Purchases = () => {
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (purchase: any) => {
-    if (!confirm("Delete this purchase record? This removes the stock it added and its ledger entries.")) return;
+    const resale = getResale(purchase.id);
+    const warning = resale
+      ? "Delete this purchase record? This removes the stock it added, its ledger entries, AND the resale recorded against it (Sold Price/Profit) — that resale can't be recovered."
+      : "Delete this purchase record? This removes the stock it added and its ledger entries.";
+    if (!confirm(warning)) return;
     const { data: purchaseItems } = await (supabase.from("purchase_items") as any)
       .select("*").eq("purchase_id", purchase.id);
     if (purchaseItems) {
@@ -420,6 +424,14 @@ const Purchases = () => {
       .delete()
       .eq("business_id", businessId)
       .eq("description", `CUST_PURCHASE:${purchase.id}`);
+
+    // A purchase that was already resold has a linked expenses row
+    // (category="purchase_resale") — without this, deleting the purchase
+    // leaves that resale dangling forever (it shows up in resale totals
+    // with no purchase to point back to).
+    if (resale) {
+      await (supabase.from("expenses") as any).delete().eq("id", resale.id);
+    }
 
     // purchase_items and payments cascade-delete with the purchase automatically
     await (supabase.from("purchases") as any).delete().eq("id", purchase.id);
