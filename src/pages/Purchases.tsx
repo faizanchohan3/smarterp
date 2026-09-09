@@ -73,6 +73,7 @@ const Purchases = () => {
   const [editSourceType, setEditSourceType] = useState<"supplier" | "customer">("supplier");
   const [editSupplierId, setEditSupplierId] = useState("");
   const [editCustomerId, setEditCustomerId] = useState("");
+  const [editSoldDate, setEditSoldDate] = useState("");
 
   // --- Sold dialog ---
   const [soldOpen, setSoldOpen] = useState(false);
@@ -373,10 +374,20 @@ const Purchases = () => {
       }
     }
 
+    // If this purchase was resold, let the resale's own date be corrected
+    // here too — same fix as the Sold dialog no longer hardcoding "today".
+    const resale = getResale(editingPurchase.id);
+    if (resale && editSoldDate && editSoldDate !== resale.date) {
+      await (supabase.from("expenses") as any)
+        .update({ date: editSoldDate })
+        .eq("id", resale.id);
+    }
+
     toast({ title: "Purchase updated" });
     setEditOpen(false);
     fetchPurchases();
     fetchLedger();
+    fetchExpenses();
   };
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -838,6 +849,8 @@ const Purchases = () => {
             setEditSourceType(src.type);
             setEditSupplierId(src.type === "supplier" ? (src.id || "") : "");
             setEditCustomerId(src.type === "customer" ? (src.id || "") : "");
+            const resale = getResale(row.id);
+            setEditSoldDate(resale?.date || "");
             setEditOpen(true);
           }}
           onDelete={handleDelete}
@@ -957,6 +970,15 @@ const Purchases = () => {
                       onChange={e => setEditPaidAmount(e.target.value)} />
                   </div>
                 )}
+
+                {editSoldDate && (
+                  <div className="space-y-1">
+                    <Label>Sold Date</Label>
+                    <Input type="date" value={editSoldDate} onChange={e => setEditSoldDate(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">This purchase was resold — correct the resale date here.</p>
+                  </div>
+                )}
+
                 <Button className="w-full" onClick={handleEdit}>Update</Button>
               </div>
             )}
