@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ import { toCSV, parseCSV, downloadCSV } from "@/lib/csv";
 const IMPORT_HEADERS = ["Name", "Category", "Price", "Stock Quantity", "Purity Karat", "Gross Weight (g)", "Net Weight (g)", "Cost Weight (g)", "Serial Number"];
 
 const Products = () => {
+  const navigate = useNavigate();
   const { data, create, update, remove, fetch: refetchProducts } = useBusinessData("products");
   const { data: categories } = useBusinessData("categories");
   const { businessId } = useAuth();
@@ -305,6 +307,7 @@ const Products = () => {
           data={filteredData}
           onEdit={openEdit}
           onDelete={(row) => remove(row.id)}
+          onSell={(row) => navigate("/sales", { state: { sellProductId: row.id } })}
           disableActions={(row) => Number(row.stock_quantity) <= 0}
           rowClassName={(row) => Number(row.stock_quantity) <= 0 ? "bg-blue-800 text-black hover:bg-blue-800" : ""}
           pageSize={20}

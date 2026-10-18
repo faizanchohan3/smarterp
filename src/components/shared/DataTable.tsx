@@ -83,7 +83,7 @@ const DataTable = ({ columns, data, onEdit, onDelete, onSell, onRowClick, totals
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       )}
-                      {onSell && (
+                      {onSell && !(disableActions && disableActions(row)) && (
                         <Button variant="ghost" size="icon" title="Record Sale" onClick={() => onSell(row)}>
                           <ShoppingBag className="w-4 h-4 text-primary" />
                         </Button>

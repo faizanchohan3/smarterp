@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,16 +54,17 @@ const getMakingChargesPKR = (value: number, unit: string, tolaRate: number): num
 
 const Sales = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: sales, fetch: fetchSales } = useBusinessData("sales");
   const { data: customers, fetch: fetchCustomers } = useBusinessData("customers");
-  const { data: products } = useBusinessData("products");
+  const { data: products, loading: productsLoading } = useBusinessData("products");
   const { data: suppliers } = useBusinessData("suppliers");
-  const { data: goldRates } = useBusinessData("gold_rates" as any);
+  const { data: goldRates, loading: ratesLoading } = useBusinessData("gold_rates" as any);
   const latestRate: any = getLatestRate(goldRates as any[]);
   const [karat, setKarat] = useState<string>("22k");
 
-  const applyKaratRate = (k: string) => {
-    if (!latestRate) return;
+  const karatRate = (k: string) => {
+    if (!latestRate) return 0;
     const map: Record<string, number> = {
       "24k": Number(latestRate.tola_24k) || 0,
       "22k": Number(latestRate.tola_22k) || 0,
@@ -71,7 +72,11 @@ const Sales = () => {
       "18k": Number(latestRate.tola_18k) || 0,
       "silver": Number(latestRate.silver_tola) || 0,
     };
-    const r = map[k] || 0;
+    return map[k] || 0;
+  };
+
+  const applyKaratRate = (k: string) => {
+    const r = karatRate(k);
     if (r > 0) {
       setTolaRate(String(r));
       recalculateAllItems(r);
@@ -125,20 +130,53 @@ const Sales = () => {
     return (wg / TOLA_IN_GRAMS) * rate;
   };
 
+  const fillFromProduct = (item: SaleItem, prod: any) => {
+    item.product_id = prod.id;
+    item.product_name = prod.name;
+    item.weight = Number(prod.weight_value) || 0;
+    item.weight_unit = prod.weight_unit === "milligram" ? "ratti" : "gram";
+    item.purity_karat = prod.purity_karat || null;
+    item.gross_weight = Number(prod.gross_weight) || 0;
+    item.net_weight = prod.gross_weight && prod.purity_karat ? fineWeight(Number(prod.gross_weight), prod.purity_karat) : 0;
+    item.cost_weight = Number(prod.cost_weight) || 0;
+  };
+
+  // "Sell" from the Products page lands here with the product id in router
+  // state — open New Sale with that product already loaded and the gold rate
+  // matching its karat pre-filled, so the cashier only picks the customer and
+  // types waste / adjusts the rate.
+  useEffect(() => {
+    const sellProductId = (location.state as any)?.sellProductId;
+    if (!sellProductId || productsLoading || ratesLoading) return;
+    navigate(location.pathname, { replace: true, state: null });
+
+    const prod = products.find((p: any) => p.id === sellProductId);
+    if (!prod) return;
+    if (Number(prod.stock_quantity) <= 0) {
+      toast({ title: "Out of stock", description: `${prod.name} ka stock 0 hai`, variant: "destructive" });
+      return;
+    }
+
+    const k = [24, 22, 21, 18].includes(Number(prod.purity_karat)) ? `${prod.purity_karat}k` : karat;
+    const r = karatRate(k);
+    const item: SaleItem = { product_id: "", product_name: "", quantity: 1, weight: 0, weight_unit: "gram", making_charges: 0, making_unit: "pkr", unit_price: 0, total: 0, purity_karat: null, gross_weight: 0, net_weight: 0, in_stock: true, supplier_id: "", cost_price: 0, cost_weight: 0, kaat: 0 };
+    fillFromProduct(item, prod);
+    if (r > 0) {
+      item.unit_price = goldPerUnitCalc(item.weight, item.weight_unit, r);
+      item.total = item.unit_price * item.quantity;
+      setTolaRate(String(r));
+    }
+    setKarat(k);
+    setItems([item]);
+    setOpen(true);
+  }, [location.state, productsLoading, ratesLoading]);
+
   const updateItem = (index: number, field: string, value: any) => {
     const updated = [...items];
     (updated[index] as any)[field] = value;
     if (field === "product_id") {
       const prod = products.find((p: any) => p.id === value);
-      if (prod) {
-        updated[index].product_name = prod.name;
-        updated[index].weight = Number(prod.weight_value) || 0;
-        updated[index].weight_unit = prod.weight_unit === "milligram" ? "ratti" : "gram";
-        updated[index].purity_karat = prod.purity_karat || null;
-        updated[index].gross_weight = Number(prod.gross_weight) || 0;
-        updated[index].net_weight = prod.gross_weight && prod.purity_karat ? fineWeight(Number(prod.gross_weight), prod.purity_karat) : 0;
-        updated[index].cost_weight = Number(prod.cost_weight) || 0;
-      }
+      if (prod) fillFromProduct(updated[index], prod);
     }
     // Drop-ship: Cost Weight auto-derives from Weight + Kaat, so the cashier
     // only ever types the Kaat — no manual gold-weight math.
