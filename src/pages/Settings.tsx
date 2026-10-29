@@ -9,11 +9,58 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Store, User, Phone, MapPin, Image, CheckCircle2, Loader2 } from "lucide-react";
+import { Save, Store, User, Phone, MapPin, Image, CheckCircle2, Loader2, Lock, Eye, EyeOff } from "lucide-react";
 
 const Settings = () => {
-  const { businessId, refreshBusiness } = useAuth();
+  const { businessId, user, refreshBusiness } = useAuth();
   const { toast } = useToast();
+
+  // --- Change password (self-service for the signed-in user) ---
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+
+  const setPwField = (field: "current" | "next" | "confirm", value: string) =>
+    setPw(p => ({ ...p, [field]: value }));
+
+  const handleChangePassword = async () => {
+    if (!user?.email) {
+      toast({ title: "Not signed in", variant: "destructive" });
+      return;
+    }
+    if (pw.next.length < 6) {
+      toast({ title: "Password too short", description: "Use at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (pw.next !== pw.confirm) {
+      toast({ title: "Passwords don't match", description: "New password and confirmation must match.", variant: "destructive" });
+      return;
+    }
+
+    setPwSaving(true);
+
+    // Re-authenticate with the current password before allowing a change.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: pw.current,
+    });
+    if (signInError) {
+      toast({ title: "Current password is incorrect", description: signInError.message, variant: "destructive" });
+      setPwSaving(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    if (error) {
+      toast({ title: "Failed to change password", description: error.message, variant: "destructive" });
+      setPwSaving(false);
+      return;
+    }
+
+    setPw({ current: "", next: "", confirm: "" });
+    toast({ title: "Password changed", description: "Your password has been updated." });
+    setPwSaving(false);
+  };
 
   const [form, setForm] = useState({
     shop_name: "",
@@ -275,6 +322,78 @@ const Settings = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Change Password */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Lock className="w-4 h-4 text-primary" />
+              Change Password
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {user?.email && (
+              <p className="text-xs text-muted-foreground">
+                Signed in as <span className="font-medium text-foreground">{user.email}</span>
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Current Password</Label>
+              <Input
+                type={showPw ? "text" : "password"}
+                placeholder="Enter current password"
+                value={pw.current}
+                onChange={e => setPwField("current", e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm">New Password</Label>
+                <Input
+                  type={showPw ? "text" : "password"}
+                  placeholder="At least 6 characters"
+                  value={pw.next}
+                  onChange={e => setPwField("next", e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Confirm New Password</Label>
+                <Input
+                  type={showPw ? "text" : "password"}
+                  placeholder="Re-enter new password"
+                  value={pw.confirm}
+                  onChange={e => setPwField("confirm", e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 self-start text-muted-foreground"
+                onClick={() => setShowPw(s => !s)}
+              >
+                {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPw ? "Hide" : "Show"} passwords
+              </Button>
+              <Button
+                type="button"
+                className="gap-2 sm:ml-auto"
+                onClick={handleChangePassword}
+                disabled={pwSaving || !pw.current || !pw.next || !pw.confirm}
+              >
+                {pwSaving
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</>
+                  : <><Lock className="w-4 h-4" /> Change Password</>
+                }
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Button
           className="w-full gap-2"
